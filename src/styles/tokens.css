@@ -46,8 +46,36 @@
   --price-figure: var(--amethyst);
   --price-delta:  var(--text-secondary);
   --chart-line:   var(--space-blue);
-  --chart-compare: var(--cinnamon);  /* second series in /compare only */
   --chart-grid:   var(--border-hairline);
+
+  /* ---- Chart series ramp (/compare only) ----
+   * /compare accepts up to 4 drugs, so 2 colors was never enough.
+   *
+   * Ordered by LIGHTNESS, not by hue, so the series separate in grayscale and
+   * for every form of color vision. Approximate L*:
+   *
+   *   1  space blue   L* 19   cool, dark
+   *   2  cinnamon     L* 57   warm, mid          — the widest hue contrast
+   *   3  deep cyan    L* 43   cool, mid-dark     — light-blue taken to a
+   *                                                usable line weight
+   *   4  amethyst     L*  7   violet, darkest
+   *
+   * Series 3 is the only value not already in the palette. It is the dark form
+   * of --light-blue, which keeps the family intact rather than importing a
+   * foreign hue. Graphic use only — like cinnamon, it is not text-safe.
+   *
+   * Every series also carries a direct label at the line end. There is no
+   * color-only legend, and no series means "good" or "bad".
+   */
+  --deep-cyan: #35708A;
+
+  --chart-series-1: var(--space-blue);
+  --chart-series-2: var(--cinnamon);
+  --chart-series-3: var(--deep-cyan);
+  --chart-series-4: var(--amethyst);
+
+  /* Retained alias: the second series was named this before the ramp existed. */
+  --chart-compare: var(--chart-series-2);
 
   /* ---- Dosage-form coding (UI spec §12) ----
    * Always paired with a text label. Color is never the only signal.
@@ -103,8 +131,8 @@
 /*
  * CONTRAST RULES — verify every pair in a checker before shipping.
  *
- * 1. --cinnamon is a graphic and data color. Never body text, never a link.
- *    Large display type only, and only above 24px bold.
+ * 1. --cinnamon and --deep-cyan are graphic and data colors. Never body text,
+ *    never a link. Large display type only, and only above 24px bold.
  * 2. --light-blue and --lavender are surfaces and swatches. Never text,
  *    never an interactive element.
  * 3. Any tint used as a chip background pairs with --text-primary.

@@ -30,6 +30,12 @@
   --color-price-figure: var(--price-figure);
   --color-price-delta: var(--price-delta);
 
+  /* Chart series ramp — graphic use only, ordered by lightness. */
+  --color-chart-series-1: var(--chart-series-1);
+  --color-chart-series-2: var(--chart-series-2);
+  --color-chart-series-3: var(--chart-series-3);
+  --color-chart-series-4: var(--chart-series-4);
+
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-numeric: var(--font-numeric);

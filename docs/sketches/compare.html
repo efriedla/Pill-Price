@@ -79,6 +79,8 @@ thead .remove { background: none; border: 0; padding: 0; margin-top: var(--space
 /* The baseline column — the drug you arrived from. Marked by a rule and a
    text label, never by colour alone. */
 .baseline { box-shadow: inset 3px 0 0 var(--accent); }
+th[scope="row"] .sub2 { display: block; font-weight: 400; font-size: var(--step--1);
+                        color: var(--text-secondary); margin-top: var(--space-1); }
 .baselinetag { display: inline-block; font-size: var(--step--1); color: var(--accent);
                text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
                margin-bottom: var(--space-2); }
@@ -104,6 +106,7 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
    Each series is directly labelled; there is no colour-only legend. */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
 .serieslabel { font-size: var(--step--1); font-weight: 600; }
+.seriesval { font-size: var(--step--1); font-family: var(--font-numeric); }
 
 /* ---- Small-screen collapse ----------------------------------------------
    Below 640 the table becomes one stacked block per drug. A 4-column table
@@ -174,6 +177,18 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
       <button aria-pressed="false">Per 100 units</button>
     </span>
 
+    <!-- Change window. Quarters are calendar arithmetic on the survey dates —
+         no dosing regimen is assumed, unlike a "per 30 days" figure would.
+         "Since first surveyed" is what makes a newly-listed product
+         comparable at all: it has no year-ago figure, but it always has a
+         first observation. -->
+    <span class="caps" style="margin-left:var(--space-4)">Change over</span>
+    <span class="toggle" role="group" aria-label="Change window">
+      <button aria-pressed="true">Quarter</button>
+      <button aria-pressed="false">Year</button>
+      <button aria-pressed="false">Since first surveyed</button>
+    </span>
+
     <span class="right">
       <span class="caps">Sort</span>
       <span class="toggle" role="group" aria-label="Column order">
@@ -183,6 +198,79 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
       </span>
     </span>
   </div>
+
+  <!-- ===================== THE CHART, LEADING =====================
+       Promoted above the table. One chart carries the whole comparison:
+       level, trend, spread, and when each product entered NADAC. The table
+       below is detail, not headline — and the chart is the only place the
+       "this generic did not exist a year ago" fact is legible at a glance
+       rather than as an apology in a cell. -->
+  <section class="block" style="margin-top:var(--space-8)" aria-labelledby="h-hist">
+    <h2 id="h-hist" class="caps">Price history · all three products</h2>
+
+    <svg class="chart" viewBox="0 0 880 260" role="img"
+         aria-label="Weekly NADAC price per unit, August 2025 to August 2026. Percocet declines from $0.3212 to $0.2814. Endocet rises from $0.1106 to $0.1140. Oxycodone slash APAP generic begins in March 2026 at $0.0951 and declines to $0.0912.">
+      <g stroke="var(--chart-grid)" stroke-width="1">
+        <line x1="46" y1="20"  x2="760" y2="20"/>
+        <line x1="46" y1="75"  x2="760" y2="75"/>
+        <line x1="46" y1="130" x2="760" y2="130"/>
+        <line x1="46" y1="185" x2="760" y2="185"/>
+      </g>
+      <g fill="var(--text-secondary)" font-size="11" font-family="var(--font-numeric)">
+        <text x="0" y="24">$0.32</text>
+        <text x="0" y="79">$0.24</text>
+        <text x="0" y="134">$0.16</text>
+        <text x="0" y="189">$0.08</text>
+      </g>
+
+      <!-- Baseline series: space blue -->
+      <polyline fill="none" stroke="var(--chart-series-1)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="60,22 110,26 160,31 210,29 260,36 310,41 360,39 410,46 460,44 510,51 560,49 610,55 660,53 700,58"/>
+      <text x="708" y="62" class="serieslabel" fill="var(--chart-series-1)">Percocet</text>
+      <text x="708" y="78" class="seriesval" fill="var(--text-secondary)">$0.2814</text>
+
+      <!-- Comparison series: cinnamon. Differs in value AND temperature. -->
+      <polyline fill="none" stroke="var(--chart-series-2)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="60,168 110,167 160,169 210,166 260,168 310,165 360,167 410,164 460,166 510,163 560,165 610,162 660,164 700,163"/>
+      <text x="708" y="167" class="serieslabel" fill="var(--chart-series-2)">Endocet</text>
+      <text x="708" y="199" class="seriesval" fill="var(--text-secondary)">$0.0912</text>
+
+      <!-- Third series: --chart-series-3, the dark form of light-blue. Cool
+           and mid-dark, so it sits between space blue and cinnamon in
+           lightness and separates from both in greyscale. -->
+      <polyline fill="none" stroke="var(--chart-series-3)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="410,176 460,178 510,177 560,179 610,178 660,180 700,179"/>
+      <circle cx="410" cy="176" r="3.5" fill="var(--chart-series-3)"/>
+      <text x="708" y="183" class="serieslabel" fill="var(--chart-series-3)">Oxycodone/APAP</text>
+      <text x="708" y="151" class="seriesval" fill="var(--text-secondary)">$0.1140</text>
+
+      <g fill="var(--text-secondary)" font-size="11">
+        <text x="60" y="248">Aug 2025</text>
+        <text x="360" y="248" text-anchor="middle">Feb 2026</text>
+        <text x="700" y="248" text-anchor="end">Aug 2026</text>
+      </g>
+    </svg>
+
+    <p class="gapnote" style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
+      The generic series begins in March 2026 because that is when it first
+      appeared in NADAC — not because the price was zero before then. Its
+      quarter-over-quarter change is still computable; its year-over-year
+      change is not, which is why the window control offers both.
+    </p>
+
+    <details class="datatable" style="margin-top:var(--space-6)">
+      <summary style="cursor:pointer;font-size:var(--step--1);color:var(--accent)">
+        View as table — 52 weeks × 3 products</summary>
+      <p style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
+        Required, not optional. A multi-series chart is the least accessible
+        thing on the site — ui-spec §3.</p>
+    </details>
+
+    <p class="provenance">Source: NADAC (CMS) · weekly survey</p>
+  </section>
 
   <!-- ===================== THE TABLE ===================== -->
   <div class="tablewrap" tabindex="0" role="region" aria-labelledby="cmp-cap">
@@ -243,13 +331,13 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
         </tr>
 
         <tr>
-          <th scope="row">Change since Aug 2025</th>
-          <td class="baseline"><span aria-hidden="true">↓</span> Down 12.4%
-            <span class="asof">from $0.3212</span></td>
-          <td><span aria-hidden="true">↑</span> Up 3.1%
-            <span class="asof">from $0.1106</span></td>
-          <td class="nodata">Not comparable
-            <span class="why">First surveyed Mar 2026 — no Aug 2025 figure exists</span></td>
+          <th scope="row">Change over Q2 2026<span class="sub2">Apr 1 – Jun 30</span></th>
+          <td class="baseline"><span aria-hidden="true">↓</span> Down 4.1%
+            <span class="asof">$0.2934 → $0.2814</span></td>
+          <td><span aria-hidden="true">↑</span> Up 0.9%
+            <span class="asof">$0.1130 → $0.1140</span></td>
+          <td><span aria-hidden="true">↓</span> Down 2.5%
+            <span class="asof">$0.0935 → $0.0912</span></td>
           <td class="addcol"></td>
         </tr>
 
@@ -321,7 +409,7 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
       <p class="dmeta">5-325 mg · Brand · Endo Pharms</p>
       <dl>
         <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.2814</span></dd></div>
-        <div class="prow"><dt>Change since Aug 2025</dt><dd>↓ Down 12.4%</dd></div>
+        <div class="prow"><dt>Change over Q2 2026</dt><dd>↓ Down 4.1%</dd></div>
         <div class="prow"><dt>Brand or generic</dt><dd>Brand</dd></div>
         <div class="prow"><dt>Marketing start</dt><dd>Mar 1, 1999</dd></div>
       </dl>
@@ -332,7 +420,7 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
       <dl>
         <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.1140</span>
           <span class="asof">$0.1674 less than Percocet</span></dd></div>
-        <div class="prow"><dt>Change since Aug 2025</dt><dd>↑ Up 3.1%</dd></div>
+        <div class="prow"><dt>Change over Q2 2026</dt><dd>↑ Up 0.9%</dd></div>
         <div class="prow"><dt>Brand or generic</dt><dd>Brand</dd></div>
         <div class="prow"><dt>Marketing start</dt><dd>Jun 15, 2004</dd></div>
       </dl>
@@ -343,8 +431,7 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
       <dl>
         <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.0912</span>
           <span class="asof">$0.1902 less than Percocet</span></dd></div>
-        <div class="prow"><dt>Change since Aug 2025</dt>
-          <dd class="nodata">Not comparable — first surveyed Mar 2026</dd></div>
+        <div class="prow"><dt>Change over Q2 2026</dt><dd>↓ Down 2.5%</dd></div>
         <div class="prow"><dt>Brand or generic</dt><dd>Generic</dd></div>
         <div class="prow"><dt>Marketing start</dt>
           <dd class="nodata">Not reported</dd></div>
@@ -354,68 +441,6 @@ td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
 
   <p class="provenance">Source: NADAC (CMS) and openFDA NDC · prices as of Aug 12, 2026 ·
      comparison computed, not fetched</p>
-
-  <!-- ===================== TWO-SERIES CHART ===================== -->
-  <section class="block" style="margin-top:var(--space-12)" aria-labelledby="h-hist">
-    <h2 id="h-hist" class="caps">Price history</h2>
-
-    <svg class="chart" viewBox="0 0 760 260" role="img"
-         aria-label="Weekly NADAC price per unit, August 2025 to August 2026. Percocet declines from $0.3212 to $0.2814. Endocet rises from $0.1106 to $0.1140. Oxycodone slash APAP generic begins in March 2026 at $0.0951 and declines to $0.0912.">
-      <g stroke="var(--chart-grid)" stroke-width="1">
-        <line x1="46" y1="20"  x2="760" y2="20"/>
-        <line x1="46" y1="75"  x2="760" y2="75"/>
-        <line x1="46" y1="130" x2="760" y2="130"/>
-        <line x1="46" y1="185" x2="760" y2="185"/>
-      </g>
-      <g fill="var(--text-secondary)" font-size="11" font-family="var(--font-numeric)">
-        <text x="0" y="24">$0.32</text>
-        <text x="0" y="79">$0.24</text>
-        <text x="0" y="134">$0.16</text>
-        <text x="0" y="189">$0.08</text>
-      </g>
-
-      <!-- Baseline series: space blue -->
-      <polyline fill="none" stroke="var(--chart-line)" stroke-width="2"
-                stroke-linejoin="round" stroke-linecap="round"
-                points="60,22 110,26 160,31 210,29 260,36 310,41 360,39 410,46 460,44 510,51 560,49 610,55 660,53 700,58"/>
-      <text x="708" y="62" class="serieslabel" fill="var(--chart-line)">Percocet</text>
-
-      <!-- Comparison series: cinnamon. Differs in value AND temperature. -->
-      <polyline fill="none" stroke="var(--chart-compare)" stroke-width="2"
-                stroke-linejoin="round" stroke-linecap="round"
-                points="60,168 110,167 160,169 210,166 260,168 310,165 360,167 410,164 460,166 510,163 560,165 610,162 660,164 700,163"/>
-      <text x="708" y="167" class="serieslabel" fill="var(--cinnamon)">Endocet</text>
-
-      <!-- Third series: neutral. A third hue would break the two-colour rule,
-           so it is drawn in text-secondary with a dashed stroke — distinguished
-           by pattern, not by adding colour. -->
-      <polyline fill="none" stroke="var(--text-secondary)" stroke-width="2"
-                stroke-dasharray="5 4" stroke-linejoin="round" stroke-linecap="round"
-                points="410,176 460,178 510,177 560,179 610,178 660,180 700,179"/>
-      <text x="708" y="183" class="serieslabel" fill="var(--text-secondary)">Generic</text>
-
-      <g fill="var(--text-secondary)" font-size="11">
-        <text x="60" y="248">Aug 2025</text>
-        <text x="360" y="248" text-anchor="middle">Feb 2026</text>
-        <text x="700" y="248" text-anchor="end">Aug 2026</text>
-      </g>
-    </svg>
-
-    <p class="gapnote" style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
-      The generic series begins in March 2026 because that is when it first
-      appeared in NADAC — not because the price was zero before then.
-    </p>
-
-    <details class="datatable" style="margin-top:var(--space-6)">
-      <summary style="cursor:pointer;font-size:var(--step--1);color:var(--accent)">
-        View as table — 52 weeks × 3 products</summary>
-      <p style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
-        Required, not optional. A multi-series chart is the least accessible
-        thing on the site — ui-spec §3.</p>
-    </details>
-
-    <p class="provenance">Source: NADAC (CMS) · weekly survey</p>
-  </section>
 
   <!-- ===================== EMPTY STATE ===================== -->
   <div class="states" style="margin-top:var(--space-12)">
