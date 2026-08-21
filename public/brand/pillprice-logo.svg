@@ -1,0 +1,24 @@
+<svg viewBox="0 0 440 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pill Price">
+  <title>Pill Price</title>
+
+  <g>
+    <rect x="19" y="39" width="16" height="56" rx="3" fill="#18314F"/>
+    <polygon points="11,93 43,93 27,110" fill="#18314F"/>
+    <path d="M60,20 H37 A19,19 0 0,0 37,58 H60 Z" fill="#18314F"/>
+
+    <rect x="85" y="39" width="16" height="56" rx="3" fill="#B27C66"/>
+    <polygon points="77,93 109,93 93,110" fill="#B27C66"/>
+    <path d="M60,20 H83 A19,19 0 0,1 83,58 H60 Z" fill="#B27C66"/>
+
+    <rect x="41" y="30" width="14" height="18" rx="5" fill="#F8F7FC"/>
+    <rect x="65" y="30" width="14" height="18" rx="5" fill="#F8F7FC"/>
+    <rect x="58.5" y="20" width="3" height="38" fill="#F8F7FC"/>
+  </g>
+
+  <!-- Wordmark: placeholder type. Convert to outlines once the display face is chosen. -->
+  <text x="148" y="78"
+        font-family="Georgia, 'Iowan Old Style', serif"
+        font-size="52"
+        letter-spacing="-1"
+        fill="#0D0630">Pill<tspan fill="#18314F" dx="12">Price</tspan></text>
+</svg>

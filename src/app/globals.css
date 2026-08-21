@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Bridge: expose the semantic tokens to Tailwind's utility generator.
+ *
+ * Only semantic tokens are bridged. Raw palette values (--amethyst,
+ * --cinnamon, …) are deliberately NOT exposed as utilities so that
+ * `text-cinnamon` cannot be written by accident — see tokens.css
+ * contrast rules 1 and 2.
+ */
+@theme inline {
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-border-hairline: var(--border-hairline);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-quiet: var(--accent-quiet);
+
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-rule: var(--warning-rule);
+  --color-warning-bg: var(--warning-bg);
+
+  --color-price-figure: var(--price-figure);
+  --color-price-delta: var(--price-delta);
+
+  /* Chart series ramp — graphic use only, ordered by lightness. */
+  --color-chart-series-1: var(--chart-series-1);
+  --color-chart-series-2: var(--chart-series-2);
+  --color-chart-series-3: var(--chart-series-3);
+  --color-chart-series-4: var(--chart-series-4);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-numeric: var(--font-numeric);
+
+  --text-step--1: var(--step--1);
+  --text-step-0: var(--step-0);
+  --text-step-1: var(--step-1);
+  --text-step-2: var(--step-2);
+  --text-step-3: var(--step-3);
+  --text-step-4: var(--step-4);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-pill: var(--radius-pill);
+}
+
+@layer base {
+  body {
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: var(--step-0);
+    line-height: 1.55;
+  }
+
+  /* One focus treatment for the whole app. W7's keyboard pass depends on
+   * this being present everywhere rather than re-declared per component. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Price columns in /compare must align — see ui-spec §13. */
+  .tabular {
+    font-family: var(--font-numeric);
+    font-variant-numeric: tabular-nums;
+  }
+}

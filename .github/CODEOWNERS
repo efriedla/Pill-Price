@@ -1,0 +1,27 @@
+# Every path has an owner. On a solo project this is not bureaucracy — it is
+
+# what makes "request changes at least once, then merge" a branch-protection
+
+# rule rather than a promise to yourself.
+
+#
+
+# TODO: replace @moocow with the real GitHub handle before pushing the remote.
+
+-                       @moocow
+
+# Decisions and contracts. Changing these should feel heavier than changing code.
+
+/docs/adr/ @efriedla
+/docs/api-contract.md @efriedla
+/CONTRIBUTING.md @efriedla
+
+# The token layer is the only file allowed to contain raw palette values.
+
+/src/styles/tokens.css @efriedla
+
+# CI and boundary enforcement — the gates the rest of the process rests on.
+
+/.github/ @efriedla
+/eslint.config.mjs @efriedla
+/tsconfig.json @efriedla

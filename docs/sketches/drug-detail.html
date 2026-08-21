@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch · /drug/1049640</title>
+
+<!-- The real token file, not a copy. If tokens.css changes, this sketch changes. -->
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+
+<link rel="stylesheet" href="sketch.css">
+
+<style>
+/* Page-specific only. Shared voice lives in sketch.css. */
+
+/* ---- Sticky condensed header ------------------------------------------ */
+.stickyhead { position: sticky; top: 0; z-index: 10; background: var(--surface-base);
+              border-bottom: 1px solid var(--border-hairline); }
+.stickyhead-inner { display: flex; align-items: center; gap: var(--space-4); height: 64px; }
+.stickyhead .nm { font-weight: 600; }
+.stickyhead .amt { font-family: var(--font-numeric); font-variant-numeric: tabular-nums;
+                   color: var(--price-figure); font-weight: 600; }
+.stickyhead .cta { margin-left: auto; }
+
+/* ---- Hero ------------------------------------------------------------- */
+.hero { padding: var(--space-12) 0 var(--space-8); }
+.hero .eyebrow { margin-bottom: var(--space-4); }
+/* Proper case, no scale-up. A drug name is a proper noun, not a headline. */
+.drugname { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.1;
+            letter-spacing: -0.01em; font-weight: 600; }
+.attrline { margin-top: var(--space-3); }
+.genericname { margin-top: var(--space-4); color: var(--text-secondary); max-width: var(--measure); }
+.figure { display: flex; align-items: baseline; gap: var(--space-4);
+          margin-top: var(--space-8); flex-wrap: wrap; }
+.figure .amount { font-size: var(--step-3); }
+.figure .unit { color: var(--text-secondary); font-size: var(--step--1); }
+.hero .delta { margin-top: var(--space-3); }
+.hero .btn { margin-top: var(--space-8); }
+
+/* ---- Layout ----------------------------------------------------------- */
+.grid { display: grid; grid-template-columns: 1fr; gap: var(--space-12);
+        padding-bottom: var(--space-12); }
+@media (min-width: 1024px) {
+  .grid { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+          gap: var(--space-12) calc(var(--space-12) * 1.4); align-items: start; }
+  /* The rail holds one thing. It stays in view while you read the label,
+     because "what's in it" is the question the label text keeps raising. */
+  .rail { position: sticky; top: calc(64px + var(--space-8)); }
+}
+
+/* ---- Chart ------------------------------------------------------------ */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.ranges { display: flex; gap: var(--space-4); margin-top: var(--space-6); flex-wrap: wrap; }
+.range { background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+         padding: var(--space-1) 0; font: inherit; font-size: var(--step--1);
+         text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-secondary); }
+.range[aria-pressed="true"] { color: var(--text-primary); border-bottom-color: var(--accent);
+                              font-weight: 600; }
+.gapnote { margin-top: var(--space-4); font-size: var(--step--1); color: var(--text-secondary);
+           max-width: var(--measure); }
+
+details.datatable { margin-top: var(--space-6); }
+details.datatable summary { cursor: pointer; font-size: var(--step--1); color: var(--accent); }
+details.datatable table { width: 100%; border-collapse: collapse; margin-top: var(--space-4);
+                          font-size: var(--step--1); }
+details.datatable th, details.datatable td { text-align: left; padding: var(--space-2);
+                          border-bottom: 1px solid var(--border-hairline); }
+details.datatable td:last-child, details.datatable th:last-child { text-align: right;
+                          font-family: var(--font-numeric); font-variant-numeric: tabular-nums; }
+
+/* ---- Composition bar — the signature element --------------------------- */
+.compbar { display: flex; height: 56px; overflow: hidden; border-radius: var(--radius-sm); }
+.seg { display: flex; align-items: center; padding: 0 var(--space-3); min-width: 0;
+       font-size: var(--step--1); font-weight: 600; color: var(--text-primary);
+       white-space: nowrap; overflow: hidden; }
+.seg-a { background: var(--light-blue); }
+.seg-b { background: var(--lavender); }
+.complegend { margin-top: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+.legrow { display: flex; align-items: center; gap: var(--space-3); font-size: var(--step--1); }
+.swatch { width: 14px; height: 14px; border-radius: 3px; flex: none;
+          box-shadow: inset 0 0 0 1px var(--border-hairline); }
+.legrow .name { font-weight: 600; color: var(--text-primary); }
+.legrow .qty { margin-left: auto; font-family: var(--font-numeric);
+               font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+
+/* ---- Boxed warning ---------------------------------------------------- */
+/* §11: never clamped, never behind a disclosure. Hue + 3px rule + icon +
+   bold label — remove any one and the signal still survives. */
+.boxed { background: var(--warning-bg); border-left: 3px solid var(--warning-rule);
+         padding: var(--space-6); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.boxed h2 { display: flex; align-items: center; gap: var(--space-3); color: var(--warning-fg);
+            font-size: var(--step--1); font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.14em; margin-bottom: var(--space-4); }
+.boxed p { max-width: var(--measure); }
+
+/* ---- Label accordion --------------------------------------------------- */
+.section { border-top: 1px solid var(--border-hairline); padding: var(--space-6) 0; }
+.section h3 { font-size: var(--step-0); font-weight: 650; }
+.clamp { max-width: var(--measure); margin-top: var(--space-3); color: var(--text-secondary);
+         display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.showmore { margin-top: var(--space-3); background: none; border: 0; padding: 0; font: inherit;
+            font-size: var(--step--1); color: var(--accent); cursor: pointer;
+            text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- Alternatives ------------------------------------------------------ */
+.altnote { font-size: var(--step--1); color: var(--text-secondary); margin-bottom: var(--space-6);
+           max-width: var(--measure); }
+.altlist { display: flex; flex-direction: column; }
+.alt { display: grid; grid-template-columns: 1fr auto; gap: var(--space-1) var(--space-4);
+       align-items: baseline; padding: var(--space-4) 0;
+       border-top: 1px solid var(--border-hairline); }
+.alt:first-child { border-top: 0; }
+.alt .an { font-weight: 600; }
+.alt .ac { grid-column: 1; font-size: var(--step--1); color: var(--text-secondary); }
+.alt .ap { font-family: var(--font-numeric); font-variant-numeric: tabular-nums;
+           color: var(--price-figure); font-weight: 600; }
+.alt .ad { grid-column: 2; font-size: var(--step--1); color: var(--price-delta); text-align: right; }
+</style>
+</head>
+
+<body>
+
+<!-- ===================== GLOBAL BAR ===================== -->
+<header class="topbar">
+  <div class="shell topbar-inner">
+    <a class="brand" href="search.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <rect x="19" y="39" width="16" height="56" rx="3" fill="var(--space-blue)"/>
+        <polygon points="11,93 43,93 27,110" fill="var(--space-blue)"/>
+        <path d="M60,20 H37 A19,19 0 0,0 37,58 H60 Z" fill="var(--space-blue)"/>
+        <rect x="85" y="39" width="16" height="56" rx="3" fill="var(--cinnamon)"/>
+        <polygon points="77,93 109,93 93,110" fill="var(--cinnamon)"/>
+        <path d="M60,20 H83 A19,19 0 0,1 83,58 H60 Z" fill="var(--cinnamon)"/>
+        <rect x="41" y="30" width="14" height="18" rx="5" fill="var(--surface-base)"/>
+        <rect x="65" y="30" width="14" height="18" rx="5" fill="var(--surface-base)"/>
+        <rect x="58.5" y="20" width="3" height="38" fill="var(--surface-base)"/>
+      </svg>
+      Pill Price
+    </a>
+    <span class="topsearch"><span aria-hidden="true">⌕</span> Search by brand or generic name</span>
+  </div>
+</header>
+
+<!-- ===================== STICKY PRICE HEADER ===================== -->
+<div class="stickyhead">
+  <div class="shell stickyhead-inner">
+    <span class="nm">Percocet</span>
+    <span class="amt">$0.2814</span>
+    <span style="color:var(--text-secondary); font-size:var(--step--1)">per unit</span>
+    <button class="btn btn-primary btn-sm cta">Add to compare</button>
+  </div>
+</div>
+
+<main class="shell">
+
+  <!-- ===================== DISCLAIMER ===================== -->
+  <div class="disclaimer">
+    <p><strong>This is an acquisition cost, not a retail price.</strong>
+       NADAC reports what pharmacies pay to buy a drug — not what you pay at the
+       counter, and not an insurance price. <a href="#">How this is calculated</a></p>
+    <button type="button">Dismiss</button>
+  </div>
+
+  <!-- ===================== HERO =====================
+       SINGLE ORIGINS / SUMATRA / EARTHY, HERBAL, CHOCOLATE
+       →  FULL OPIOID AGONIST / PERCOCET / TABLET, ORAL, 5 MG / 325 MG      -->
+  <div class="hero">
+    <p class="caps eyebrow">Full Opioid Agonist</p>
+
+    <h1 class="drugname">Percocet</h1>
+
+    <p class="caps attrline">Tablet, Oral, 5 mg / 325 mg</p>
+
+    <p class="genericname">Oxycodone hydrochloride and acetaminophen ·
+       <span class="tabular">rxcui 1049640</span></p>
+
+    <div class="figure">
+      <span class="amount">$0.2814</span>
+      <span class="unit">per unit · as of Aug 12, 2026</span>
+    </div>
+    <p class="delta">
+      <span class="tabular" aria-hidden="true">↓</span>
+      <span>Down 12.4% — $0.0398 lower than Aug 2025</span>
+    </p>
+
+    <button class="btn btn-primary">Add to compare</button>
+  </div>
+
+  <!-- ===================== TWO-COLUMN BODY ===================== -->
+  <div class="grid">
+
+    <!-- ---------- LEFT ---------- -->
+    <div class="col">
+
+      <section class="block" aria-labelledby="h-price">
+        <h2 id="h-price" class="caps">Price history</h2>
+
+        <svg class="chart" viewBox="0 0 720 240" role="img"
+             aria-label="Weekly NADAC price per unit, August 2025 to August 2026. Declines from $0.3212 to $0.2814, with no reported price between February and April 2026.">
+          <g stroke="var(--chart-grid)" stroke-width="1">
+            <line x1="0" y1="20"  x2="720" y2="20"/>
+            <line x1="0" y1="75"  x2="720" y2="75"/>
+            <line x1="0" y1="130" x2="720" y2="130"/>
+            <line x1="0" y1="185" x2="720" y2="185"/>
+          </g>
+          <g fill="var(--text-secondary)" font-size="11" font-family="var(--font-numeric)">
+            <text x="0" y="16">$0.34</text>
+            <text x="0" y="71">$0.32</text>
+            <text x="0" y="126">$0.30</text>
+            <text x="0" y="181">$0.28</text>
+          </g>
+
+          <polyline fill="none" stroke="var(--chart-line)" stroke-width="2"
+                    stroke-linejoin="round" stroke-linecap="round"
+                    points="58,62 78,58 98,66 118,61 138,72 158,68 178,80 198,74 218,86 238,92 258,88 278,99 298,104 318,98 338,110"/>
+
+          <!-- THE GAP: drug absent from NADAC. Never interpolated across. -->
+          <rect x="338" y="20" width="72" height="165" fill="var(--surface-sunken)"/>
+          <text x="374" y="205" text-anchor="middle" font-size="10" fill="var(--text-secondary)">not reported</text>
+
+          <polyline fill="none" stroke="var(--chart-line)" stroke-width="2"
+                    stroke-linejoin="round" stroke-linecap="round"
+                    points="410,126 435,121 460,133 485,129 510,141 535,136 560,148 585,144 610,155 635,151 660,162 685,158 710,167"/>
+          <circle cx="710" cy="167" r="3.5" fill="var(--chart-line)"/>
+
+          <g fill="var(--text-secondary)" font-size="11">
+            <text x="58" y="228">Aug 2025</text>
+            <text x="374" y="228" text-anchor="middle">Feb</text>
+            <text x="535" y="228" text-anchor="middle">May</text>
+            <text x="710" y="228" text-anchor="end">Aug 2026</text>
+          </g>
+        </svg>
+
+        <div class="ranges" role="group" aria-label="Time range">
+          <button class="range" aria-pressed="false">3M</button>
+          <button class="range" aria-pressed="false">6M</button>
+          <button class="range" aria-pressed="true">1Y</button>
+          <button class="range" aria-pressed="false">5Y</button>
+          <button class="range" aria-pressed="false">All</button>
+        </div>
+
+        <p class="gapnote">No NADAC survey data between Feb 6 and Apr 17, 2026.
+           The line is broken rather than interpolated — the gap is real information.</p>
+
+        <details class="datatable">
+          <summary>View as table — 52 weekly observations</summary>
+          <table>
+            <caption class="sr-only">NADAC price per unit by effective date</caption>
+            <thead><tr><th scope="col">Effective date</th><th scope="col">Price per unit</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 12, 2026</td><td>$0.2814</td></tr>
+              <tr><td>Aug 5, 2026</td><td>$0.2831</td></tr>
+              <tr><td>Jul 29, 2026</td><td>$0.2822</td></tr>
+              <tr><td>Apr 17, 2026</td><td>$0.3016</td></tr>
+              <tr><td>Feb 6, 2026</td><td>$0.3049</td></tr>
+            </tbody>
+          </table>
+        </details>
+
+        <p class="provenance">Source: NADAC (CMS) · weekly survey · latest effective date Aug 12, 2026</p>
+      </section>
+
+      <section class="block" aria-labelledby="h-stats">
+        <h2 id="h-stats" class="caps">Details</h2>
+        <dl class="pairs">
+          <div class="pair"><dt>Dosage form:</dt>
+            <dd><span class="formchip">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="8" width="20" height="8" rx="4" fill="var(--form-tablet)"
+                      stroke="var(--border-hairline)"/>
+                <line x1="12" y1="8" x2="12" y2="16" stroke="var(--border-hairline)"/>
+              </svg>Tablet</span></dd></div>
+
+          <div class="pair"><dt>Route:</dt> <dd>Oral</dd></div>
+
+          <div class="pair"><dt>Drug class:</dt> <dd>Full Opioid Agonist</dd>
+            <span class="sub">Pharmacologic class, not a condition</span></div>
+
+          <div class="pair"><dt>Available strengths:</dt> <dd>5/325, 7.5/325, 10/325 mg</dd></div>
+
+          <div class="pair"><dt>Brand or generic:</dt> <dd>Brand</dd>
+            <span class="sub">classification_for_rate_setting</span></div>
+
+          <div class="pair"><dt>NDC packages:</dt> <dd class="tabular">14</dd></div>
+
+          <div class="pair"><dt>Marketing start:</dt> <dd>Mar 1, 1999</dd>
+            <span class="sub">Not an approval date — different regulatory event</span></div>
+
+          <div class="pair"><dt>Labelers:</dt> <dd>Endo Pharms, Par Pharmaceutical, Rhodes Pharms</dd></div>
+        </dl>
+        <p class="provenance">Source: openFDA NDC and RxNorm · retrieved Aug 21, 2026</p>
+      </section>
+
+      <!-- Outside the accordion. Always open. -->
+      <section class="boxed" aria-labelledby="h-boxed">
+        <h2 id="h-boxed"><span aria-hidden="true">▲</span> Boxed warning</h2>
+        <p>Addiction, abuse, and misuse of oxycodone can lead to overdose and death.
+           Acetaminophen has been associated with cases of acute liver failure, at
+           times resulting in liver transplant and death. Prolonged use during
+           pregnancy can result in neonatal opioid withdrawal syndrome.</p>
+        <p class="provenance">Source: FDA label · updated Jun 3, 2026</p>
+      </section>
+
+      <section class="block" aria-labelledby="h-label">
+        <h2 id="h-label" class="caps">From the FDA label</h2>
+
+        <div class="section" style="border-top:0; padding-top:0">
+          <h3>Indications and usage</h3>
+          <p class="clamp">For the management of pain severe enough to require an opioid
+             analgesic and for which alternative treatments are inadequate. Because of the
+             risks of addiction, abuse, and misuse with opioids, reserve for patients in whom
+             alternative treatment options have not been tolerated or are not expected to be
+             tolerated, or have not provided adequate analgesia.</p>
+          <button class="showmore" aria-expanded="false">Show more</button>
+        </div>
+
+        <div class="section">
+          <h3>Dosage and administration</h3>
+          <p class="clamp">Initiate the dosing regimen for each patient individually, taking
+             into account the patient's severity of pain, patient response, prior analgesic
+             treatment experience, and risk factors for addiction, abuse, and misuse. Monitor
+             patients closely for respiratory depression, especially within the first 24 to
+             72 hours of initiating therapy.</p>
+          <button class="showmore" aria-expanded="false">Show more</button>
+        </div>
+
+        <div class="section">
+          <h3>Contraindications</h3>
+          <p class="clamp">Significant respiratory depression. Acute or severe bronchial asthma
+             in an unmonitored setting or in the absence of resuscitative equipment. Known or
+             suspected gastrointestinal obstruction, including paralytic ileus. Hypersensitivity
+             to oxycodone, acetaminophen, or any component of the product.</p>
+          <button class="showmore" aria-expanded="false">Show more</button>
+        </div>
+
+        <p class="provenance">Source: FDA label · updated Jun 3, 2026 · normalized in the BFF</p>
+      </section>
+
+      <section class="block" aria-labelledby="h-same">
+        <h2 id="h-same" class="caps">Same active ingredients</h2>
+        <p class="altnote">Shares both active ingredients with Percocet.
+           Not a substitution recommendation — talk to a pharmacist.</p>
+        <ul class="altlist">
+          <li class="alt">
+            <span class="an">Oxycodone/APAP 5-325 (generic)</span>
+            <span class="ap">$0.0912</span>
+            <span class="ac">Amneal Pharmaceuticals · tablet</span>
+            <span class="ad">$0.1902 less per unit</span>
+          </li>
+          <li class="alt">
+            <span class="an">Endocet 5-325</span>
+            <span class="ap">$0.1140</span>
+            <span class="ac">Par Pharmaceutical · tablet</span>
+            <span class="ad">$0.1674 less per unit</span>
+          </li>
+          <li class="alt">
+            <span class="an">Primlev 5-300</span>
+            <span class="ap">$0.4455</span>
+            <span class="ac">Akorn · tablet · different strength</span>
+            <span class="ad">$0.1641 more per unit</span>
+          </li>
+        </ul>
+        <p class="provenance">Source: RxNorm related concepts · NADAC as of Aug 12, 2026</p>
+      </section>
+
+      <section class="block" aria-labelledby="h-class">
+        <h2 id="h-class" class="caps">Same drug class</h2>
+        <p class="altnote">Also classified as Full Opioid Agonist. These are
+           <strong>not</strong> interchangeable with Percocet — shown for reference only.</p>
+        <ul class="altlist">
+          <li class="alt">
+            <span class="an">Hydrocodone/APAP 5-325</span>
+            <span class="ap">$0.0784</span>
+            <span class="ac">Full Opioid Agonist</span>
+            <span class="ad">—</span>
+          </li>
+          <li class="alt">
+            <span class="an">Morphine sulfate ER 15 mg</span>
+            <span class="ap">$0.2231</span>
+            <span class="ac">Full Opioid Agonist</span>
+            <span class="ad">—</span>
+          </li>
+          <li class="alt">
+            <span class="an">Tramadol HCl 50 mg</span>
+            <span class="ap">$0.0451</span>
+            <span class="ac">Full Opioid Agonist</span>
+            <span class="ad">—</span>
+          </li>
+        </ul>
+        <p class="provenance">Source: openFDA pharm_class_epc · NADAC as of Aug 12, 2026</p>
+      </section>
+    </div>
+
+    <!-- ---------- RIGHT: the rail ---------- -->
+    <div class="col rail">
+
+      <!-- The signature element. Nothing else on the page looks like it. -->
+      <section class="block" aria-labelledby="h-comp">
+        <h2 id="h-comp" class="caps">What's in it</h2>
+
+        <div class="compbar" role="img"
+             aria-label="Strength composition: acetaminophen 325 milligrams, oxycodone hydrochloride 5 milligrams. Segments are drawn to a compressed scale.">
+          <div class="seg seg-a" style="flex: 0 0 78%">Acetaminophen</div>
+          <div class="seg seg-b" style="flex: 0 0 22%">Oxycodone</div>
+        </div>
+
+        <div class="complegend">
+          <div class="legrow">
+            <span class="swatch" style="background:var(--light-blue)"></span>
+            <span class="name">Acetaminophen</span>
+            <span class="qty">325 mg</span>
+          </div>
+          <div class="legrow">
+            <span class="swatch" style="background:var(--lavender)"></span>
+            <span class="name">Oxycodone hydrochloride</span>
+            <span class="qty">5 mg</span>
+          </div>
+        </div>
+
+        <p class="provenance"><strong>Compressed scale.</strong> True proportion is 65 : 1,
+           which renders the smaller ingredient invisible. Segment widths show
+           presence and rank, not magnitude — exact strengths are listed above.</p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<!-- ===================== COMPARE TRAY ===================== -->
+<div class="tray">
+  <div class="shell tray-inner">
+    <span class="lbl">Comparing</span>
+    <span class="chips">
+      <span class="chip">Percocet</span>
+      <span class="chip">Endocet 5-325</span>
+    </span>
+    <a class="btn" href="compare.html">Compare 2 drugs</a>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="shell">
+    <p style="margin-bottom:var(--space-3)">
+      <a href="search.html">/search</a>
+      <a href="drug-detail.html">/drug/[rxcui]</a>
+      <a href="compare.html">/compare</a>
+    </p>
+    Sketch only · not a real page · data shown is illustrative.
+    Structure follows <code>docs/ui-spec.md</code> §§1–13.
+  </div>
+</footer>
+
+</body>
+</html>
