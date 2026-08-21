@@ -1,0 +1,142 @@
+/* Pill Price — design tokens
+ *
+ * Rule: components reference semantic tokens only. Raw palette values
+ * never appear outside this file.
+ */
+
+:root {
+  /* ---- Palette ---- */
+  --amethyst:    #0D0630;  /* near-black, violet cast */
+  --space-blue:  #18314F;  /* primary interactive */
+  --cinnamon:    #B27C66;  /* warm secondary — NOT text-safe at body sizes */
+  --light-blue:  #B0E0F0;  /* tint */
+  --lavender:    #E6E6FA;  /* tint */
+
+  /* ---- Surfaces ----
+   * Cool off-white derived from lavender. The palette is cold apart from
+   * cinnamon; a warm base would compete with it.
+   */
+  --surface-base:    #F8F7FC;
+  --surface-raised:  #FFFFFF;
+  --surface-sunken:  var(--lavender);
+  --surface-inverse: var(--amethyst);
+  --border-hairline: #DEDCE8;
+
+  /* ---- Text ---- */
+  --text-primary:   var(--amethyst);
+  --text-secondary: #4A5568;
+  --text-inverse:   var(--surface-base);
+
+  /* ---- Interactive ---- */
+  --accent:         var(--space-blue);
+  --accent-hover:   #0F2338;
+  --accent-quiet:   var(--light-blue);  /* chip and selected backgrounds only */
+  --focus-ring:     var(--space-blue);
+
+  /* ---- Warning ----
+   * The palette is now cool, so crimson separates cleanly. Boxed warnings
+   * still combine crimson + 3px left rule + icon + bold label — hue is never
+   * the sole carrier. Keep crimson away from cinnamon within a component.
+   */
+  --warning-fg:   #B3261E;
+  --warning-rule: #B3261E;
+  --warning-bg:   #FCF0EF;
+
+  /* ---- Price (no directional color — UI spec §2) ---- */
+  --price-figure: var(--amethyst);
+  --price-delta:  var(--text-secondary);
+  --chart-line:   var(--space-blue);
+  --chart-grid:   var(--border-hairline);
+
+  /* ---- Chart series ramp (/compare only) ----
+   * /compare accepts up to 4 drugs, so 2 colors was never enough.
+   *
+   * Ordered by LIGHTNESS, not by hue, so the series separate in grayscale and
+   * for every form of color vision. Approximate L*:
+   *
+   *   1  space blue   L* 19   cool, dark
+   *   2  cinnamon     L* 57   warm, mid          — the widest hue contrast
+   *   3  deep cyan    L* 43   cool, mid-dark     — light-blue taken to a
+   *                                                usable line weight
+   *   4  amethyst     L*  7   violet, darkest
+   *
+   * Series 3 is the only value not already in the palette. It is the dark form
+   * of --light-blue, which keeps the family intact rather than importing a
+   * foreign hue. Graphic use only — like cinnamon, it is not text-safe.
+   *
+   * Every series also carries a direct label at the line end. There is no
+   * color-only legend, and no series means "good" or "bad".
+   */
+  --deep-cyan: #35708A;
+
+  --chart-series-1: var(--space-blue);
+  --chart-series-2: var(--cinnamon);
+  --chart-series-3: var(--deep-cyan);
+  --chart-series-4: var(--amethyst);
+
+  /* Retained alias: the second series was named this before the ramp existed. */
+  --chart-compare: var(--chart-series-2);
+
+  /* ---- Dosage-form coding (UI spec §12) ----
+   * Always paired with a text label. Color is never the only signal.
+   */
+  --form-tablet:    var(--light-blue);
+  --form-capsule:   var(--lavender);
+  --form-liquid:    #D6E4F0;
+  --form-injection: #EBD9D2;
+  --form-patch:     #DAD6E4;
+  --form-inhaler:   #E4E8EC;
+
+  /* ---- Type ----
+   * PLACEHOLDERS. Blocked on ui-spec §10 "Display and body typefaces".
+   * When the faces are chosen, load them with next/font in the root layout
+   * and point these three tokens at the generated CSS variables. Nothing
+   * else in the app should change.
+   */
+  --font-display: Georgia, 'Iowan Old Style', serif;   /* placeholder */
+  --font-body:    system-ui, sans-serif;               /* placeholder */
+  --font-numeric: ui-monospace, 'SF Mono', monospace;  /* MUST have tabular figures */
+
+  --step--1: 0.833rem;
+  --step-0:  1rem;
+  --step-1:  1.25rem;
+  --step-2:  1.563rem;
+  --step-3:  1.953rem;
+  --step-4:  2.441rem;
+
+  --measure: 68ch;
+
+  /* ---- Space (4px base) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* ---- Radii / motion ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-pill: 999px;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; }
+}
+
+/*
+ * CONTRAST RULES — verify every pair in a checker before shipping.
+ *
+ * 1. --cinnamon and --deep-cyan are graphic and data colors. Never body text,
+ *    never a link. Large display type only, and only above 24px bold.
+ * 2. --light-blue and --lavender are surfaces and swatches. Never text,
+ *    never an interactive element.
+ * 3. Any tint used as a chip background pairs with --text-primary.
+ * 4. Every category coded by color also carries a text label.
+ * 5. --amethyst doubles as a dark-theme base if you ever want one — the
+ *    palette supports it, but that is out of scope for the 8 weeks.
+ */
