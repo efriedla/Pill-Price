@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+# Generated. Collapse in diffs and exclude from language stats.
+package-lock.json  linguist-generated=true -diff
+
+# Throwaway design sketches — not representative of the app's source.
+docs/sketches/**   linguist-documentation=true

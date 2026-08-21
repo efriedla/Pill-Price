@@ -8,7 +8,7 @@
 
 # TODO: replace @moocow with the real GitHub handle before pushing the remote.
 
--                       @moocow
+-                       @efriedla
 
 # Decisions and contracts. Changing these should feel heavier than changing code.
 
@@ -18,7 +18,7 @@
 
 # The token layer is the only file allowed to contain raw palette values.
 
-/src/styles/tokens.css @efriedla
+/src/lib/tokens.css @efriedla
 
 # CI and boundary enforcement — the gates the rest of the process rests on.
 
