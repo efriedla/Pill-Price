@@ -13,10 +13,15 @@
    THROWAWAY. Decision aid for ui-spec §8 (desktop composition) and §10
    (density, signature element). Nothing here survives into src/.
 
-   Voice: the Fonté single-origin page — letterspaced caps eyebrow, heavy
-   display name, comma-separated attribute line, bold-label key/value pairs,
-   and a lot of air. Card chrome is gone: sections are separated by whitespace
-   and hairline rules, not by boxes.
+   Voice: the Fonté single-origin page — quiet letterspaced caps for structural
+   labels, comma-separated attribute line, bold-label key/value pairs, and a lot
+   of air. Card chrome is gone: sections are separated by whitespace and hairline
+   rules, not by boxes.
+
+   What was deliberately NOT borrowed: Fonté's volume. That page is selling
+   coffee, so it sets the product name in caps, scales it up, and letterspaces
+   its CTAs. This page is informing, so nothing is asked to work harder than it
+   has to — proper-case name, sentence-case buttons, no display scale-up.
 
    Rule kept anyway: not a single raw hex below. Every value is a token.
    --------------------------------------------------------------------------- */
@@ -44,8 +49,7 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 .topbar { border-bottom: 1px solid var(--border-hairline); }
 .topbar-inner { display: flex; align-items: center; gap: var(--space-6); height: 72px; }
 .brand { display: flex; align-items: center; gap: var(--space-3);
-         font-family: var(--font-display); font-size: var(--step-1);
-         letter-spacing: 0.02em; text-transform: uppercase; }
+         font-family: var(--font-display); font-size: var(--step-1); }
 .brand svg { width: 24px; height: 24px; display: block; }
 .topsearch { margin-left: auto; display: flex; align-items: center; gap: var(--space-3);
              border-bottom: 1px solid var(--border-hairline); padding: var(--space-2) var(--space-1);
@@ -55,8 +59,7 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 .stickyhead { position: sticky; top: 0; z-index: 10; background: var(--surface-base);
               border-bottom: 1px solid var(--border-hairline); }
 .stickyhead-inner { display: flex; align-items: center; gap: var(--space-4); height: 64px; }
-.stickyhead .nm { font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-                  font-size: var(--step--1); }
+.stickyhead .nm { font-weight: 600; }
 .stickyhead .amt { font-family: var(--font-numeric); font-variant-numeric: tabular-nums;
                    color: var(--price-figure); font-weight: 600; }
 .stickyhead .cta { margin-left: auto; }
@@ -64,8 +67,7 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 /* ---- Buttons ---------------------------------------------------------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
        height: 44px; padding: 0 var(--space-6); border: 0; border-radius: var(--radius-sm);
-       font: inherit; font-size: var(--step--1); font-weight: 600; cursor: pointer;
-       text-transform: uppercase; letter-spacing: 0.1em;
+       font: inherit; font-size: var(--step-0); font-weight: 550; cursor: pointer;
        transition: background var(--duration-fast) var(--ease); }
 .btn-primary { background: var(--accent); color: var(--text-inverse); }
 .btn-primary:hover { background: var(--accent-hover); }
@@ -88,9 +90,11 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 /* ---- Hero ------------------------------------------------------------- */
 .hero { padding: var(--space-12) 0 var(--space-8); }
 .hero .eyebrow { margin-bottom: var(--space-4); }
-.drugname { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.05;
-            text-transform: uppercase; letter-spacing: 0.01em; font-weight: 700; }
-@media (min-width: 1024px) { .drugname { font-size: calc(var(--step-4) * 1.5); } }
+/* Proper case, no scale-up. A drug name is a proper noun, not a headline —
+   setting it in caps is styling for effect on a page that is informing, not
+   selling. The display face carries it; it does not need help. */
+.drugname { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.1;
+            letter-spacing: -0.01em; font-weight: 600; }
 .attrline { margin-top: var(--space-3); }
 .genericname { margin-top: var(--space-4); color: var(--text-secondary); max-width: var(--measure); }
 
@@ -111,8 +115,11 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 .grid { display: grid; grid-template-columns: 1fr; gap: var(--space-12);
         padding-bottom: var(--space-12); }
 @media (min-width: 1024px) {
-  .grid { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  .grid { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
           gap: var(--space-12) calc(var(--space-12) * 1.4); align-items: start; }
+  /* The rail holds one thing. It stays in view while you read the label,
+     because "what's in it" is the question the label text keeps raising. */
+  .rail { position: sticky; top: calc(64px + var(--space-8)); }
 }
 .col { display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
 
@@ -183,7 +190,7 @@ details.datatable td:last-child, details.datatable th:last-child { text-align: r
          display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .showmore { margin-top: var(--space-3); background: none; border: 0; padding: 0; font: inherit;
             font-size: var(--step--1); color: var(--accent); cursor: pointer;
-            text-transform: uppercase; letter-spacing: 0.12em; }
+            text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---- Alternatives ------------------------------------------------------ */
 .altnote { font-size: var(--step--1); color: var(--text-secondary); margin-bottom: var(--space-6);
@@ -203,8 +210,7 @@ details.datatable td:last-child, details.datatable th:last-child { text-align: r
 .tray { position: sticky; bottom: 0; background: var(--surface-inverse); color: var(--text-inverse); }
 .tray-inner { display: flex; align-items: center; gap: var(--space-4);
               padding: var(--space-4) 0; }
-.tray .lbl { text-transform: uppercase; letter-spacing: 0.14em; font-size: var(--step--1);
-             opacity: 0.7; }
+.tray .lbl { font-size: var(--step--1); opacity: 0.7; }
 .tray .chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .chip { box-shadow: inset 0 0 0 1px var(--text-inverse); border-radius: var(--radius-pill);
         padding: var(--space-1) var(--space-3); font-size: var(--step--1); }
@@ -244,7 +250,7 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
   <div class="shell stickyhead-inner">
     <span class="nm">Percocet</span>
     <span class="amt">$0.2814</span>
-    <span class="caps" style="letter-spacing:0.1em">per unit</span>
+    <span style="color:var(--text-secondary); font-size:var(--step--1)">per unit</span>
     <button class="btn btn-primary btn-sm cta">Add to compare</button>
   </div>
 </div>
@@ -433,38 +439,6 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
 
         <p class="provenance">Source: FDA label · updated Jun 3, 2026 · normalized in the BFF</p>
       </section>
-    </div>
-
-    <!-- ---------- RIGHT ---------- -->
-    <div class="col">
-
-      <!-- The signature element. Nothing else on the page looks like it. -->
-      <section class="block" aria-labelledby="h-comp">
-        <h2 id="h-comp" class="caps">What's in it</h2>
-
-        <div class="compbar" role="img"
-             aria-label="Strength composition: acetaminophen 325 milligrams, oxycodone hydrochloride 5 milligrams. Segments are drawn to a compressed scale.">
-          <div class="seg seg-a" style="flex: 0 0 78%">Acetaminophen</div>
-          <div class="seg seg-b" style="flex: 0 0 22%">Oxycodone</div>
-        </div>
-
-        <div class="complegend">
-          <div class="legrow">
-            <span class="swatch" style="background:var(--light-blue)"></span>
-            <span class="name">Acetaminophen</span>
-            <span class="qty">325 mg</span>
-          </div>
-          <div class="legrow">
-            <span class="swatch" style="background:var(--lavender)"></span>
-            <span class="name">Oxycodone hydrochloride</span>
-            <span class="qty">5 mg</span>
-          </div>
-        </div>
-
-        <p class="provenance"><strong>Compressed scale.</strong> True proportion is 65 : 1,
-           which renders the smaller ingredient invisible. Segment widths show
-           presence and rank, not magnitude — exact strengths are listed above.</p>
-      </section>
 
       <section class="block" aria-labelledby="h-same">
         <h2 id="h-same" class="caps">Same active ingredients</h2>
@@ -518,6 +492,38 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
           </li>
         </ul>
         <p class="provenance">Source: openFDA pharm_class_epc · NADAC as of Aug 12, 2026</p>
+      </section>
+    </div>
+
+    <!-- ---------- RIGHT: the rail ---------- -->
+    <div class="col rail">
+
+      <!-- The signature element. Nothing else on the page looks like it. -->
+      <section class="block" aria-labelledby="h-comp">
+        <h2 id="h-comp" class="caps">What's in it</h2>
+
+        <div class="compbar" role="img"
+             aria-label="Strength composition: acetaminophen 325 milligrams, oxycodone hydrochloride 5 milligrams. Segments are drawn to a compressed scale.">
+          <div class="seg seg-a" style="flex: 0 0 78%">Acetaminophen</div>
+          <div class="seg seg-b" style="flex: 0 0 22%">Oxycodone</div>
+        </div>
+
+        <div class="complegend">
+          <div class="legrow">
+            <span class="swatch" style="background:var(--light-blue)"></span>
+            <span class="name">Acetaminophen</span>
+            <span class="qty">325 mg</span>
+          </div>
+          <div class="legrow">
+            <span class="swatch" style="background:var(--lavender)"></span>
+            <span class="name">Oxycodone hydrochloride</span>
+            <span class="qty">5 mg</span>
+          </div>
+        </div>
+
+        <p class="provenance"><strong>Compressed scale.</strong> True proportion is 65 : 1,
+           which renders the smaller ingredient invisible. Segment widths show
+           presence and rank, not magnitude — exact strengths are listed above.</p>
       </section>
 
     </div>
