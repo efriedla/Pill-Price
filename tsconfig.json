@@ -27,8 +27,15 @@
         "name": "next"
       }
     ],
+    /* One alias per layer. The generic "@/*" is deliberately gone: it made
+     * every layer look like one namespace, which is exactly the illusion the
+     * boundary rules exist to remove. */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/app/*": ["./src/app/*"],
+      "@/server/*": ["./src/server/*"],
+      "@/features/*": ["./src/features/*"],
+      "@/ui/*": ["./src/ui/*"],
+      "@/lib/*": ["./src/lib/*"]
     }
   },
   "include": [

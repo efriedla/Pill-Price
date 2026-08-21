@@ -1,109 +1,113 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ESLint } from "eslint";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
- * The boundaries rule is only worth having if it actually rejects things.
- * Rather than proving that once in a throwaway commit, prove it on every CI
+ * The boundary config is only worth having if it actually rejects things.
+ * Rather than proving that once in a throwaway branch, prove it on every CI
  * run: lint synthetic importers against each edge of the layer graph.
  *
- * The *importing* file is virtual (`lintText` takes a path that need not
- * exist), but the *imported* file must be real — an unresolvable import is
- * invisible to the plugin, which would make every assertion here pass
- * vacuously. Hence the fixture module written in `beforeAll`.
+ * The *importing* file is virtual — `lintText` takes a path that need not
+ * exist — but every *imported* module here is real. An unresolvable import is
+ * invisible to the plugin, which would make these assertions pass vacuously.
  */
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const eslint = new ESLint({ cwd: root });
 
-const fixtureFeature = path.join(root, "src/features/__fixture__");
-
-beforeAll(async () => {
-  await mkdir(fixtureFeature, { recursive: true });
-  await writeFile(
-    path.join(fixtureFeature, "target.ts"),
-    "export const target = true;\n",
-  );
-});
-
-afterAll(async () => {
-  await rm(path.join(root, "src/features"), { recursive: true, force: true });
-});
-
 async function lint(relativePath: string, source: string) {
   const [result] = await eslint.lintText(source, {
     filePath: path.join(root, relativePath),
   });
-  return result?.messages ?? [];
+  return (result?.messages ?? []).filter((m) =>
+    m.ruleId?.startsWith("boundaries/"),
+  );
 }
 
-const boundaryErrors = (messages: Awaited<ReturnType<typeof lint>>) =>
-  messages.filter((m) => m.ruleId?.startsWith("boundaries/"));
+const imports = {
+  featureBarrel: `import { formatPerUnit } from "@/features/drug";\nexport const x = formatPerUnit;\n`,
+  featureDeep: `import type { DrugSummary } from "@/features/drug/types";\nexport type X = DrugSummary;\n`,
+  ui: `import { Button } from "@/ui/Button";\nexport const x = Button;\n`,
+  lib: `import { cn } from "@/lib/cn";\nexport const x = cn;\n`,
+  server: `import { typeDefs } from "@/server/schema";\nexport const x = typeDefs;\n`,
+  app: `import Home from "@/app/page";\nexport const x = Home;\n`,
+};
 
-const FEATURE_IMPORT = `import { target } from "@/features/__fixture__/target";\nexport const x = target;\n`;
+describe("module boundaries", () => {
+  describe("rejects", () => {
+    it("ui importing a feature", async () => {
+      expect(await lint("src/ui/Bad.ts", imports.featureBarrel)).not.toHaveLength(0);
+    });
 
-describe("module boundaries (ADR-003)", () => {
-  it("rejects ui importing a feature", async () => {
-    expect(
-      boundaryErrors(await lint("src/components/ui/Bad.tsx", FEATURE_IMPORT)),
-    ).not.toHaveLength(0);
+    it("ui importing server", async () => {
+      expect(await lint("src/ui/Bad.ts", imports.server)).not.toHaveLength(0);
+    });
+
+    it("lib importing ui", async () => {
+      expect(await lint("src/lib/bad.ts", imports.ui)).not.toHaveLength(0);
+    });
+
+    it("lib importing a feature", async () => {
+      expect(await lint("src/lib/bad.ts", imports.featureBarrel)).not.toHaveLength(0);
+    });
+
+    it("server importing ui", async () => {
+      expect(await lint("src/server/bad.ts", imports.ui)).not.toHaveLength(0);
+    });
+
+    it("server importing a feature", async () => {
+      expect(await lint("src/server/bad.ts", imports.featureBarrel)).not.toHaveLength(0);
+    });
+
+    it("a feature importing server", async () => {
+      expect(await lint("src/features/compare/bad.ts", imports.server)).not.toHaveLength(0);
+    });
+
+    it("one feature importing another through its barrel", async () => {
+      expect(await lint("src/features/compare/bad.ts", imports.featureBarrel)).not.toHaveLength(0);
+    });
+
+    it("one feature importing another's internals via a deep path", async () => {
+      expect(await lint("src/features/compare/bad.ts", imports.featureDeep)).not.toHaveLength(0);
+    });
+
+    it("app importing a feature's internals via a deep path", async () => {
+      expect(await lint("src/app/bad.ts", imports.featureDeep)).not.toHaveLength(0);
+    });
+
+    it("anything importing app", async () => {
+      expect(await lint("src/features/drug/bad.ts", imports.app)).not.toHaveLength(0);
+    });
   });
 
-  it("rejects lib importing a feature", async () => {
-    expect(
-      boundaryErrors(await lint("src/lib/bad.ts", FEATURE_IMPORT)),
-    ).not.toHaveLength(0);
-  });
-
-  it("rejects lib importing ui", async () => {
-    expect(
-      boundaryErrors(
-        await lint(
-          "src/lib/bad.ts",
-          `import { Button } from "@/components/ui/Button";\nexport const x = Button;\n`,
-        ),
-      ),
-    ).not.toHaveLength(0);
-  });
-
-  it("rejects one feature importing another", async () => {
-    expect(
-      boundaryErrors(
-        await lint("src/features/compare/bad.ts", FEATURE_IMPORT),
-      ),
-    ).not.toHaveLength(0);
-  });
-
-  it("allows a feature importing itself", async () => {
-    expect(
-      boundaryErrors(
-        await lint("src/features/__fixture__/ok.ts", FEATURE_IMPORT),
-      ),
-    ).toHaveLength(0);
-  });
-
-  it("allows app importing a feature, ui, and lib", async () => {
-    expect(
-      boundaryErrors(
+  describe("allows", () => {
+    it("app importing a feature barrel, ui, and lib", async () => {
+      expect(
         await lint(
           "src/app/ok.ts",
-          `import { target } from "@/features/__fixture__/target";\nimport { Button } from "@/components/ui/Button";\nimport { cn } from "@/lib/cn";\nexport const x = [target, Button, cn];\n`,
+          imports.featureBarrel + imports.ui.replace("x", "y") + imports.lib.replace("x", "z"),
         ),
-      ),
-    ).toHaveLength(0);
-  });
+      ).toHaveLength(0);
+    });
 
-  it("allows ui importing lib", async () => {
-    expect(
-      boundaryErrors(
-        await lint(
-          "src/components/ui/Ok.ts",
-          `import { cn } from "@/lib/cn";\nexport const x = cn;\n`,
-        ),
-      ),
-    ).toHaveLength(0);
+    it("a feature importing ui and lib", async () => {
+      expect(
+        await lint("src/features/drug/ok.ts", imports.ui + imports.lib.replace("x", "y")),
+      ).toHaveLength(0);
+    });
+
+    it("a feature importing its own internals", async () => {
+      expect(await lint("src/features/drug/ok.ts", imports.featureDeep)).toHaveLength(0);
+    });
+
+    it("ui importing lib", async () => {
+      expect(await lint("src/ui/Ok.ts", imports.lib)).toHaveLength(0);
+    });
+
+    it("server importing lib", async () => {
+      expect(await lint("src/server/ok.ts", imports.lib)).toHaveLength(0);
+    });
   });
 });

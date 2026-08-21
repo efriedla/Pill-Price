@@ -1,0 +1,18 @@
+# Matches the formatting the repo is already written in, so an editor that
+# respects this file produces diffs that are about the change, not whitespace.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Two trailing spaces are a hard line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{svg,ico}]
+insert_final_newline = false

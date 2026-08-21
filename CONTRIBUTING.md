@@ -62,24 +62,43 @@ While iterating, `npm run test:unit` skips the browser.
 
 ### Module boundaries
 
-Imports travel one way, and never sideways between features:
+Imports travel one way, and never sideways between slices:
 
 ```
 app  →  feature  →  ui  →  lib
-        (never feature → feature)
+server  ─────────────────→  lib
 ```
 
-| Layer | Path | May import | Holds |
-| --- | --- | --- | --- |
-| `app` | `src/app/` | feature, ui, lib | Routes, layouts, composition |
-| `feature` | `src/features/<name>/` | its own family, ui, lib | A vertical slice with its own data fetching and state |
-| `ui` | `src/components/` | ui, lib | Presentational primitives. No domain knowledge |
-| `lib` | `src/lib/` | lib | Pure helpers, upstream clients, schemas |
+| Layer | Path | Alias | May import | Holds |
+| --- | --- | --- | --- | --- |
+| `app` | `src/app/` | `@/app/*` | feature, ui, lib | Routes, layouts, route handlers |
+| `server` | `src/server/` | `@/server/*` | lib | GraphQL BFF: schema, resolvers, upstream clients |
+| `feature` | `src/features/<name>/` | `@/features/*` | ui, lib | A vertical slice with its own data fetching and state |
+| `ui` | `src/ui/` | `@/ui/*` | lib | Presentational primitives. No domain knowledge |
+| `lib` | `src/lib/` | `@/lib/*` | nothing internal | Types, formatters, tokens, generated GraphQL |
 
-Enforced by `eslint-plugin-boundaries`, and — more usefully — asserted by
-`tests/boundaries.test.ts`, which lints a synthetic violation of each edge and
-fails if the rule does *not* reject it. Changing the layer graph means changing
-that test, which is the point: the boundary should be hard to weaken quietly.
+**Default is deny.** Anything not in that table is an error, so a new kind of
+import fails loudly instead of being quietly permitted.
+
+**Nothing imports `app`.** It is the top of the graph.
+
+**`feature` and `server` never import each other.** They meet on the generated
+types in `src/lib/gql/` and nowhere else.
+
+**Features are reachable only through their `index.ts` barrel.** A deep path
+into a slice's internals is a lint error, which is what makes the barrel a real
+public API rather than a convention. When you add something to a slice, decide
+deliberately whether it goes in the barrel.
+
+**Every module under `src/server/` starts with `import "server-only"`**, so a
+BFF module pulled into a client bundle fails the build rather than leaking
+upstream URLs or credentials into the browser.
+
+Enforced by `eslint-plugin-boundaries` (v7, the unified
+`boundaries/dependencies` rule), and asserted by `tests/boundaries.test.ts`,
+which lints a synthetic violation of each edge and fails if the config does
+*not* reject it. Changing the layer graph means changing that test — the
+boundary should be hard to weaken quietly.
 
 **When two features need the same thing,** it goes down into `lib` (logic) or
 `ui` (presentation). It does not get imported across. If that feels like
@@ -91,8 +110,8 @@ overkill for the first shared helper, it isn't — the rule is what keeps
 Stories, tests, and components sit together:
 
 ```
-src/components/ui/Button.tsx
-src/components/ui/Button.stories.tsx
+src/ui/Button.tsx
+src/ui/Button.stories.tsx
 src/lib/cn.ts
 src/lib/cn.test.ts
 ```
@@ -103,7 +122,7 @@ No parallel `__tests__` tree, no `stories/` directory.
 
 ## Styling
 
-**Semantic tokens only.** `src/styles/tokens.css` is the single file permitted
+**Semantic tokens only.** `src/lib/tokens.css` is the single file permitted
 to contain raw palette values. Everywhere else, use a semantic token — an
 ESLint rule rejects hex literals in `src/` and will fail your build.
 
@@ -111,9 +130,10 @@ Only semantic tokens are bridged into Tailwind, so `bg-surface-raised` and
 `text-text-secondary` exist while `text-cinnamon` deliberately does not. That
 isn't an oversight — see the contrast rules at the bottom of `tokens.css`:
 
-- **Cinnamon is not text-safe.** ~3:1 on the light surface. Graphics, chart
-  series, and large display type only. `--accent` (space blue) does all
-  interactive work
+- **Cinnamon and deep cyan are not text-safe.** Graphics, chart series, and
+  large display type only. `--accent` (space blue) does all interactive work
+- **Chart series use the `--chart-series-1..4` ramp**, ordered by lightness so
+  the series separate in greyscale and under every form of colour vision
 - **Light blue and lavender are surfaces**, never text and never interactive
 - **Crimson is for warnings, recalls, and errors.** Never for price. Never in
   the same component as cinnamon
