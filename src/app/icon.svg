@@ -2,26 +2,45 @@
   <title>Pill Price</title>
 
   <!-- Single-colour form of the mark (ui-spec §14): favicon and any one-colour
-       context. The counters and the capsule seam are knocked out through a
-       mask rather than filled with the surface colour, so the mark sits on any
+       context. Counters and the capsule seam are knocked out through a mask
+       rather than filled with the surface colour, so the mark sits on any
        background instead of only on --surface-base.
 
-       The colour is a literal here, not a token: an SVG served as an image has
-       no access to the CSS custom properties. It is --space-blue. -->
+       Two departures from pillprice-mark.svg, both from the §14 16px check:
+
+       1. Counters widened from 14×18 to 17×21 and squared off (rx 5 → 4).
+          At 16px the original counters closed and the bowls read as solid
+          blobs. §14 says widen the counters rather than narrow the stems,
+          because the stems carry the downward-arrow read.
+
+       2. Seam widened from 3px to 9px. In the two-colour mark the back-to-back
+          P's are separated by hue; strip the colour and a 3px seam disappears,
+          leaving one arch rather than two letterforms. The seam has to do the
+          whole job alone here, so it is drawn to carry it.
+
+       3. Artwork scaled to fill the viewBox. The drawing occupies 98×90 of a
+          120×120 box; a favicon has no padding budget to spare, so the ~22%
+          is given back to the letterforms. The two-colour mark keeps its
+          breathing room — it is never rendered at 16px.
+
+       The colour is a literal, not a token: an SVG served as an image has no
+       access to CSS custom properties. It is --space-blue. -->
   <mask id="ppm">
     <rect width="120" height="120" fill="#000000"/>
-    <g fill="#FFFFFF">
-      <rect x="19" y="39" width="16" height="56" rx="3"/>
-      <polygon points="11,93 43,93 27,110"/>
-      <path d="M60,20 H37 A19,19 0 0,0 37,58 H60 Z"/>
-      <rect x="85" y="39" width="16" height="56" rx="3"/>
-      <polygon points="77,93 109,93 93,110"/>
-      <path d="M60,20 H83 A19,19 0 0,1 83,58 H60 Z"/>
-    </g>
-    <g fill="#000000">
-      <rect x="41" y="30" width="14" height="18" rx="5"/>
-      <rect x="65" y="30" width="14" height="18" rx="5"/>
-      <rect x="58.5" y="20" width="3" height="38"/>
+    <g transform="translate(-13.47,-19.59) scale(1.2245)">
+      <g fill="#FFFFFF">
+        <rect x="19" y="39" width="16" height="56" rx="3"/>
+        <polygon points="11,93 43,93 27,110"/>
+        <path d="M60,20 H37 A19,19 0 0,0 37,58 H60 Z"/>
+        <rect x="85" y="39" width="16" height="56" rx="3"/>
+        <polygon points="77,93 109,93 93,110"/>
+        <path d="M60,20 H83 A19,19 0 0,1 83,58 H60 Z"/>
+      </g>
+      <g fill="#000000">
+        <rect x="38" y="28.5" width="16" height="21" rx="4"/>
+        <rect x="66" y="28.5" width="16" height="21" rx="4"/>
+        <rect x="55.5" y="20" width="9" height="38"/>
+      </g>
     </g>
   </mask>
 
