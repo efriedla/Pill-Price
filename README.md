@@ -10,6 +10,8 @@ this app is labelled accordingly — see `docs/ui-spec.md` §9.
 
 Week 1 of 8. Scaffold and design system only; no data layer yet.
 
+Contributing, and the constraints that shape the code: [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
 ## Local setup
 
 ```bash
