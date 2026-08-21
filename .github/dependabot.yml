@@ -1,0 +1,40 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: scope
+    groups:
+      # One PR per toolchain rather than one per package. Twenty separate
+      # Storybook bumps is noise that trains you to merge without reading.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      next:
+        patterns: ["next", "eslint-config-next", "@next/*"]
+      storybook:
+        patterns: ["storybook", "@storybook/*", "eslint-plugin-storybook"]
+      testing:
+        patterns: ["vitest", "@vitest/*", "@testing-library/*", "playwright", "jsdom"]
+      linting:
+        patterns: ["eslint", "eslint-plugin-*", "typescript", "typescript-eslint"]
+      styling:
+        patterns: ["tailwindcss", "@tailwindcss/*", "postcss"]
+    ignore:
+      # Majors land as deliberate, ADR-backed upgrades, not as a Monday PR.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "ci"
