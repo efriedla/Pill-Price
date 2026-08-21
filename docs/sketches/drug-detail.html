@@ -8,52 +8,10 @@
 <!-- The real token file, not a copy. If tokens.css changes, this sketch changes. -->
 <link rel="stylesheet" href="../../src/styles/tokens.css">
 
+<link rel="stylesheet" href="sketch.css">
+
 <style>
-/* ---------------------------------------------------------------------------
-   THROWAWAY. Decision aid for ui-spec §8 (desktop composition) and §10
-   (density, signature element). Nothing here survives into src/.
-
-   Voice: the Fonté single-origin page — quiet letterspaced caps for structural
-   labels, comma-separated attribute line, bold-label key/value pairs, and a lot
-   of air. Card chrome is gone: sections are separated by whitespace and hairline
-   rules, not by boxes.
-
-   What was deliberately NOT borrowed: Fonté's volume. That page is selling
-   coffee, so it sets the product name in caps, scales it up, and letterspaces
-   its CTAs. This page is informing, so nothing is asked to work harder than it
-   has to — proper-case name, sentence-case buttons, no display scale-up.
-
-   Rule kept anyway: not a single raw hex below. Every value is a token.
-   --------------------------------------------------------------------------- */
-
-*, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; background: var(--surface-base); color: var(--text-primary);
-       font-family: var(--font-body); font-size: var(--step-0); line-height: 1.6; }
-h1,h2,h3,h4,p,ul,ol,dl,dd,figure { margin: 0; }
-ul { padding: 0; list-style: none; }
-a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
-:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-sm); }
-.tabular { font-family: var(--font-numeric); font-variant-numeric: tabular-nums; }
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
-           clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-
-.shell { max-width: 1180px; margin: 0 auto; padding: 0 var(--space-8); }
-@media (max-width: 640px) { .shell { padding: 0 var(--space-6); } }
-
-/* Fonté's signature: letterspaced caps, small, quiet. Used for every
-   structural label on the page so the rhythm is recognisable. */
-.caps { text-transform: uppercase; letter-spacing: 0.16em; font-size: var(--step--1);
-        color: var(--text-secondary); font-weight: 500; }
-
-/* ---- Global bar ------------------------------------------------------- */
-.topbar { border-bottom: 1px solid var(--border-hairline); }
-.topbar-inner { display: flex; align-items: center; gap: var(--space-6); height: 72px; }
-.brand { display: flex; align-items: center; gap: var(--space-3);
-         font-family: var(--font-display); font-size: var(--step-1); }
-.brand svg { width: 24px; height: 24px; display: block; }
-.topsearch { margin-left: auto; display: flex; align-items: center; gap: var(--space-3);
-             border-bottom: 1px solid var(--border-hairline); padding: var(--space-2) var(--space-1);
-             width: min(320px, 42vw); color: var(--text-secondary); font-size: var(--step--1); }
+/* Page-specific only. Shared voice lives in sketch.css. */
 
 /* ---- Sticky condensed header ------------------------------------------ */
 .stickyhead { position: sticky; top: 0; z-index: 10; background: var(--surface-base);
@@ -64,54 +22,22 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
                    color: var(--price-figure); font-weight: 600; }
 .stickyhead .cta { margin-left: auto; }
 
-/* ---- Buttons ---------------------------------------------------------- */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-       height: 44px; padding: 0 var(--space-6); border: 0; border-radius: var(--radius-sm);
-       font: inherit; font-size: var(--step-0); font-weight: 550; cursor: pointer;
-       transition: background var(--duration-fast) var(--ease); }
-.btn-primary { background: var(--accent); color: var(--text-inverse); }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-secondary { background: transparent; color: var(--accent);
-                 box-shadow: inset 0 0 0 1px var(--border-hairline); }
-.btn-secondary:hover { background: var(--accent-quiet); }
-.btn-sm { height: 34px; padding: 0 var(--space-4); }
-
-/* ---- Disclaimer ------------------------------------------------------- */
-/* A definition, not a warning — so no crimson. Crimson stays reserved for
-   boxed warnings and recalls (§2), which keeps the two visually separable
-   when both are on screen. */
-.disclaimer { display: flex; gap: var(--space-4); align-items: flex-start;
-              border-left: 2px solid var(--accent); padding: var(--space-1) 0 var(--space-1) var(--space-4);
-              font-size: var(--step--1); margin-top: var(--space-8); max-width: var(--measure); }
-.disclaimer button { margin-left: auto; flex: none; background: none; border: 0;
-                     color: var(--accent); font: inherit; font-size: var(--step--1);
-                     cursor: pointer; padding: 0; }
-
 /* ---- Hero ------------------------------------------------------------- */
 .hero { padding: var(--space-12) 0 var(--space-8); }
 .hero .eyebrow { margin-bottom: var(--space-4); }
-/* Proper case, no scale-up. A drug name is a proper noun, not a headline —
-   setting it in caps is styling for effect on a page that is informing, not
-   selling. The display face carries it; it does not need help. */
+/* Proper case, no scale-up. A drug name is a proper noun, not a headline. */
 .drugname { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.1;
             letter-spacing: -0.01em; font-weight: 600; }
 .attrline { margin-top: var(--space-3); }
 .genericname { margin-top: var(--space-4); color: var(--text-secondary); max-width: var(--measure); }
-
 .figure { display: flex; align-items: baseline; gap: var(--space-4);
           margin-top: var(--space-8); flex-wrap: wrap; }
-.figure .amount { font-family: var(--font-numeric); font-variant-numeric: tabular-nums;
-                  font-size: var(--step-3); font-weight: 600; color: var(--price-figure);
-                  letter-spacing: -0.01em; }
+.figure .amount { font-size: var(--step-3); }
 .figure .unit { color: var(--text-secondary); font-size: var(--step--1); }
-/* §2: one colour for every price figure. Direction is a glyph plus words. */
-.delta { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--price-delta);
-         font-size: var(--step--1); margin-top: var(--space-3); }
+.hero .delta { margin-top: var(--space-3); }
 .hero .btn { margin-top: var(--space-8); }
 
-/* ---- Section rhythm --------------------------------------------------- */
-/* No cards. Air and hairlines, the way the Fonté page separates tasting
-   notes from the description from the reviews. */
+/* ---- Layout ----------------------------------------------------------- */
 .grid { display: grid; grid-template-columns: 1fr; gap: var(--space-12);
         padding-bottom: var(--space-12); }
 @media (min-width: 1024px) {
@@ -121,11 +47,6 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
      because "what's in it" is the question the label text keeps raising. */
   .rail { position: sticky; top: calc(64px + var(--space-8)); }
 }
-.col { display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
-
-.block { border-top: 1px solid var(--border-hairline); padding-top: var(--space-6); }
-.block > h2 { margin-bottom: var(--space-6); }
-.provenance { margin-top: var(--space-6); font-size: var(--step--1); color: var(--text-secondary); }
 
 /* ---- Chart ------------------------------------------------------------ */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
@@ -146,17 +67,6 @@ details.datatable th, details.datatable td { text-align: left; padding: var(--sp
                           border-bottom: 1px solid var(--border-hairline); }
 details.datatable td:last-child, details.datatable th:last-child { text-align: right;
                           font-family: var(--font-numeric); font-variant-numeric: tabular-nums; }
-
-/* ---- Stats: Fonté's bold-label pairs, not a bordered grid -------------- */
-.pairs { display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
-         gap: var(--space-6) var(--space-8); }
-@media (max-width: 380px) { .pairs { grid-template-columns: 1fr; } }
-.pair dt { font-weight: 650; display: inline; }
-.pair dd { display: inline; color: var(--text-secondary); }
-.pair .sub { display: block; font-size: var(--step--1); color: var(--text-secondary);
-             margin-top: var(--space-1); }
-.formchip { display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: -3px; }
-.formchip svg { width: 18px; height: 18px; flex: none; }
 
 /* ---- Composition bar — the signature element --------------------------- */
 .compbar { display: flex; height: 56px; overflow: hidden; border-radius: var(--radius-sm); }
@@ -205,20 +115,6 @@ details.datatable td:last-child, details.datatable th:last-child { text-align: r
 .alt .ap { font-family: var(--font-numeric); font-variant-numeric: tabular-nums;
            color: var(--price-figure); font-weight: 600; }
 .alt .ad { grid-column: 2; font-size: var(--step--1); color: var(--price-delta); text-align: right; }
-
-/* ---- Compare tray ------------------------------------------------------ */
-.tray { position: sticky; bottom: 0; background: var(--surface-inverse); color: var(--text-inverse); }
-.tray-inner { display: flex; align-items: center; gap: var(--space-4);
-              padding: var(--space-4) 0; }
-.tray .lbl { font-size: var(--step--1); opacity: 0.7; }
-.tray .chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.chip { box-shadow: inset 0 0 0 1px var(--text-inverse); border-radius: var(--radius-pill);
-        padding: var(--space-1) var(--space-3); font-size: var(--step--1); }
-.tray .btn { margin-left: auto; background: var(--surface-base); color: var(--text-primary); }
-@media (max-width: 640px) { .tray .lbl { display: none; } }
-
-footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space-8) 0 var(--space-12);
-              font-size: var(--step--1); color: var(--text-secondary); }
 </style>
 </head>
 
@@ -227,7 +123,7 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
 <!-- ===================== GLOBAL BAR ===================== -->
 <header class="topbar">
   <div class="shell topbar-inner">
-    <span class="brand">
+    <a class="brand" href="search.html">
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <rect x="19" y="39" width="16" height="56" rx="3" fill="var(--space-blue)"/>
         <polygon points="11,93 43,93 27,110" fill="var(--space-blue)"/>
@@ -240,7 +136,7 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
         <rect x="58.5" y="20" width="3" height="38" fill="var(--surface-base)"/>
       </svg>
       Pill Price
-    </span>
+    </a>
     <span class="topsearch"><span aria-hidden="true">⌕</span> Search by brand or generic name</span>
   </div>
 </header>
@@ -538,12 +434,17 @@ footer.foot { border-top: 1px solid var(--border-hairline); padding: var(--space
       <span class="chip">Percocet</span>
       <span class="chip">Endocet 5-325</span>
     </span>
-    <button class="btn">Compare 2 drugs</button>
+    <a class="btn" href="compare.html">Compare 2 drugs</a>
   </div>
 </div>
 
 <footer class="foot">
   <div class="shell">
+    <p style="margin-bottom:var(--space-3)">
+      <a href="search.html">/search</a>
+      <a href="drug-detail.html">/drug/[rxcui]</a>
+      <a href="compare.html">/compare</a>
+    </p>
     Sketch only · not a real page · data shown is illustrative.
     Structure follows <code>docs/ui-spec.md</code> §§1–13.
   </div>

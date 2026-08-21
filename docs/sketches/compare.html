@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch · /compare</title>
+
+<link rel="stylesheet" href="../../src/styles/tokens.css">
+<link rel="stylesheet" href="sketch.css">
+
+<style>
+/* Page-specific only. Shared voice lives in sketch.css. */
+
+.comparehead { padding: var(--space-12) 0 var(--space-8); }
+.comparehead h1 { font-family: var(--font-display); font-size: var(--step-3);
+                  font-weight: 600; letter-spacing: -0.01em; margin-top: var(--space-3); }
+.comparehead .lede { margin-top: var(--space-4); color: var(--text-secondary);
+                     max-width: var(--measure); }
+
+/* Shows the real URL. Every control on this page writes to it — there is no
+   useState for anything shareable (W4 definition of done). Review aid only. */
+.urlpeek { margin-top: var(--space-6); font-family: var(--font-numeric);
+           font-size: var(--step--1); color: var(--text-secondary);
+           background: var(--surface-sunken); border-radius: var(--radius-sm);
+           padding: var(--space-2) var(--space-3); display: block;
+           overflow-x: auto; white-space: nowrap; }
+
+.controls { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;
+            margin-top: var(--space-8); padding-bottom: var(--space-4);
+            border-bottom: 1px solid var(--border-hairline); }
+.toggle { display: inline-flex; border-radius: var(--radius-pill); overflow: hidden;
+          box-shadow: inset 0 0 0 1px var(--border-hairline); }
+.toggle button { background: none; border: 0; font: inherit; font-size: var(--step--1);
+                 cursor: pointer; padding: var(--space-2) var(--space-4);
+                 color: var(--text-secondary); }
+.toggle button[aria-pressed="true"] { background: var(--accent-quiet);
+                                      color: var(--text-primary); font-weight: 600; }
+.controls .right { margin-left: auto; display: flex; align-items: center; gap: var(--space-4);
+                   font-size: var(--step--1); }
+
+/* ---- The table ----------------------------------------------------------
+   Attributes are rows, drugs are columns. The alternative — drugs as rows —
+   was rejected: attribute values differ in type (money, dates, prose), and a
+   column of mixed types cannot be scanned or right-aligned.
+
+   First column and header row are both sticky. Everything numeric is tabular
+   so the price row aligns down the page (ui-spec §13).                     */
+.tablewrap { overflow-x: auto; margin-top: var(--space-8);
+             /* Full-bleed scroll on small screens so the table can use the
+                whole viewport width rather than the shell's gutters. */
+             margin-inline: calc(var(--space-8) * -1); padding-inline: var(--space-8); }
+@media (max-width: 640px) {
+  .tablewrap { margin-inline: calc(var(--space-6) * -1); padding-inline: var(--space-6); }
+}
+
+table.cmp { border-collapse: separate; border-spacing: 0; width: 100%;
+            min-width: 720px; }
+table.cmp th, table.cmp td { text-align: left; vertical-align: top;
+                             padding: var(--space-4) var(--space-4);
+                             border-bottom: 1px solid var(--border-hairline); }
+
+/* Sticky attribute column. Needs its own background or rows show through. */
+table.cmp th[scope="row"] { position: sticky; left: 0; z-index: 1;
+                            background: var(--surface-base); font-weight: 650;
+                            width: 200px; min-width: 200px;
+                            box-shadow: 1px 0 0 var(--border-hairline); }
+
+thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-base);
+           border-bottom: 1px solid var(--border-hairline); }
+thead th:first-child { z-index: 3; }
+thead .dname { font-weight: 650; font-size: var(--step-0); display: block; }
+thead .dname a { color: inherit; text-decoration: none; }
+thead .dmeta { display: block; font-size: var(--step--1); color: var(--text-secondary);
+               margin-top: var(--space-1); font-weight: 400; }
+thead .remove { background: none; border: 0; padding: 0; margin-top: var(--space-3);
+                font: inherit; font-size: var(--step--1); color: var(--accent);
+                cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+/* The baseline column — the drug you arrived from. Marked by a rule and a
+   text label, never by colour alone. */
+.baseline { box-shadow: inset 3px 0 0 var(--accent); }
+.baselinetag { display: inline-block; font-size: var(--step--1); color: var(--accent);
+               text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600;
+               margin-bottom: var(--space-2); }
+
+td .amount { font-size: var(--step-1); display: block; }
+td .asof { display: block; font-size: var(--step--1); color: var(--text-secondary);
+           margin-top: var(--space-1); }
+td .vs { display: block; font-size: var(--step--1); color: var(--price-delta);
+         margin-top: var(--space-2); }
+
+/* Missing data is stated, never blank and never zero. */
+.nodata { color: var(--text-secondary); font-style: italic; }
+.nodata .why { display: block; font-style: normal; font-size: var(--step--1);
+               margin-top: var(--space-1); }
+
+.addcol { width: 200px; min-width: 200px; }
+.addcol button { width: 100%; }
+
+/* ---- Two-series chart --------------------------------------------------- */
+/* §2: the one place two hues appear together. Space blue for the drug you
+   arrived from, cinnamon for the comparison — different in value AND
+   temperature, so they separate in greyscale and for colourblind readers.
+   Each series is directly labelled; there is no colour-only legend. */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.serieslabel { font-size: var(--step--1); font-weight: 600; }
+
+/* ---- Small-screen collapse ----------------------------------------------
+   Below 640 the table becomes one stacked block per drug. A 4-column table
+   at 320px is unreadable no matter how it scrolls.                        */
+.stacked { display: none; }
+@media (max-width: 640px) {
+  .tablewrap { display: none; }
+  .stacked { display: flex; flex-direction: column; gap: var(--space-12); }
+}
+.dcard { border-top: 1px solid var(--border-hairline); padding-top: var(--space-6); }
+.dcard h3 { font-size: var(--step-1); font-weight: 650; }
+.dcard .dmeta { font-size: var(--step--1); color: var(--text-secondary);
+                margin-top: var(--space-1); }
+.dcard dl { margin-top: var(--space-6); }
+.dcard .prow { display: flex; gap: var(--space-4); align-items: baseline;
+               padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hairline); }
+.dcard .prow dt { font-weight: 650; flex: 0 0 44%; }
+.dcard .prow dd { margin: 0; color: var(--text-secondary); }
+</style>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="shell topbar-inner">
+    <a class="brand" href="search.html">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <rect x="19" y="39" width="16" height="56" rx="3" fill="var(--space-blue)"/>
+        <polygon points="11,93 43,93 27,110" fill="var(--space-blue)"/>
+        <path d="M60,20 H37 A19,19 0 0,0 37,58 H60 Z" fill="var(--space-blue)"/>
+        <rect x="85" y="39" width="16" height="56" rx="3" fill="var(--cinnamon)"/>
+        <polygon points="77,93 109,93 93,110" fill="var(--cinnamon)"/>
+        <path d="M60,20 H83 A19,19 0 0,1 83,58 H60 Z" fill="var(--cinnamon)"/>
+        <rect x="41" y="30" width="14" height="18" rx="5" fill="var(--surface-base)"/>
+        <rect x="65" y="30" width="14" height="18" rx="5" fill="var(--surface-base)"/>
+        <rect x="58.5" y="20" width="3" height="38" fill="var(--surface-base)"/>
+      </svg>
+      Pill Price
+    </a>
+    <span class="topsearch"><span aria-hidden="true">⌕</span> Search by brand or generic name</span>
+  </div>
+</header>
+
+<main class="shell">
+
+  <div class="comparehead">
+    <p class="caps">Compare</p>
+    <h1>Three oxycodone-acetaminophen products</h1>
+    <p class="lede">Same two active ingredients, same strength. The difference is
+       what pharmacies pay to acquire them.</p>
+
+    <code class="urlpeek">/compare?rxcui=1049640,1049683,1043562&amp;units=unit&amp;sort=price&amp;baseline=1049640</code>
+  </div>
+
+  <div class="disclaimer">
+    <p><strong>These are acquisition costs, not retail prices.</strong>
+       A lower NADAC does not mean a lower copay. Talk to a pharmacist about
+       substitution. <a href="#">How this is calculated</a></p>
+    <button type="button">Dismiss</button>
+  </div>
+
+  <div class="controls">
+    <span class="caps">Show price</span>
+    <!-- Pure arithmetic on the same field. Deliberately NOT "per 30 days" —
+         that would require assuming a dosing regimen the data doesn't carry. -->
+    <span class="toggle" role="group" aria-label="Price units">
+      <button aria-pressed="true">Per unit</button>
+      <button aria-pressed="false">Per 100 units</button>
+    </span>
+
+    <span class="right">
+      <span class="caps">Sort</span>
+      <span class="toggle" role="group" aria-label="Column order">
+        <button aria-pressed="true">Price</button>
+        <button aria-pressed="false">Name</button>
+        <button aria-pressed="false">As added</button>
+      </span>
+    </span>
+  </div>
+
+  <!-- ===================== THE TABLE ===================== -->
+  <div class="tablewrap" tabindex="0" role="region" aria-labelledby="cmp-cap">
+    <table class="cmp">
+      <caption id="cmp-cap" class="sr-only">
+        Comparison of three oxycodone and acetaminophen products by price,
+        composition, and label attributes.
+      </caption>
+
+      <thead>
+        <tr>
+          <th scope="col"><span class="sr-only">Attribute</span></th>
+
+          <th scope="col" class="baseline">
+            <span class="baselinetag">Baseline</span>
+            <span class="dname"><a href="drug-detail.html">Percocet</a></span>
+            <span class="dmeta">5-325 mg · Brand · Endo Pharms</span>
+            <button class="remove">Remove</button>
+          </th>
+
+          <th scope="col">
+            <span class="dname"><a href="drug-detail.html">Endocet</a></span>
+            <span class="dmeta">5-325 mg · Brand · Par Pharmaceutical</span>
+            <button class="remove">Remove</button>
+          </th>
+
+          <th scope="col">
+            <span class="dname"><a href="drug-detail.html">Oxycodone/APAP</a></span>
+            <span class="dmeta">5-325 mg · Generic · Amneal</span>
+            <button class="remove">Remove</button>
+          </th>
+
+          <th scope="col" class="addcol">
+            <button class="btn btn-secondary btn-sm">Add a 4th drug</button>
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <th scope="row">NADAC per unit</th>
+          <td class="baseline">
+            <span class="amount">$0.2814</span>
+            <span class="asof">as of Aug 12, 2026</span>
+            <span class="vs">baseline</span>
+          </td>
+          <td>
+            <span class="amount">$0.1140</span>
+            <span class="asof">as of Aug 12, 2026</span>
+            <span class="vs">$0.1674 less than Percocet — 59.5% lower</span>
+          </td>
+          <td>
+            <span class="amount">$0.0912</span>
+            <span class="asof">as of Aug 12, 2026</span>
+            <span class="vs">$0.1902 less than Percocet — 67.6% lower</span>
+          </td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Change since Aug 2025</th>
+          <td class="baseline"><span aria-hidden="true">↓</span> Down 12.4%
+            <span class="asof">from $0.3212</span></td>
+          <td><span aria-hidden="true">↑</span> Up 3.1%
+            <span class="asof">from $0.1106</span></td>
+          <td class="nodata">Not comparable
+            <span class="why">First surveyed Mar 2026 — no Aug 2025 figure exists</span></td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Active ingredients</th>
+          <td class="baseline">Oxycodone HCl 5 mg<br>Acetaminophen 325 mg</td>
+          <td>Oxycodone HCl 5 mg<br>Acetaminophen 325 mg</td>
+          <td>Oxycodone HCl 5 mg<br>Acetaminophen 325 mg</td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Dosage form</th>
+          <td class="baseline">Tablet, oral</td>
+          <td>Tablet, oral</td>
+          <td>Tablet, oral</td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Drug class</th>
+          <td class="baseline">Full Opioid Agonist</td>
+          <td>Full Opioid Agonist</td>
+          <td>Full Opioid Agonist</td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Brand or generic</th>
+          <td class="baseline">Brand</td>
+          <td>Brand</td>
+          <td>Generic</td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Boxed warning</th>
+          <td class="baseline">Yes — addiction, abuse, misuse; hepatotoxicity</td>
+          <td>Yes — addiction, abuse, misuse; hepatotoxicity</td>
+          <td>Yes — addiction, abuse, misuse; hepatotoxicity</td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">Marketing start</th>
+          <td class="baseline">Mar 1, 1999</td>
+          <td>Jun 15, 2004</td>
+          <td class="nodata">Not reported
+            <span class="why">Absent from this product's NDC record</span></td>
+          <td class="addcol"></td>
+        </tr>
+
+        <tr>
+          <th scope="row">NDC packages</th>
+          <td class="baseline tabular">14</td>
+          <td class="tabular">9</td>
+          <td class="tabular">22</td>
+          <td class="addcol"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===================== STACKED, BELOW 640 ===================== -->
+  <div class="stacked">
+    <div class="dcard">
+      <span class="baselinetag">Baseline</span>
+      <h3>Percocet</h3>
+      <p class="dmeta">5-325 mg · Brand · Endo Pharms</p>
+      <dl>
+        <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.2814</span></dd></div>
+        <div class="prow"><dt>Change since Aug 2025</dt><dd>↓ Down 12.4%</dd></div>
+        <div class="prow"><dt>Brand or generic</dt><dd>Brand</dd></div>
+        <div class="prow"><dt>Marketing start</dt><dd>Mar 1, 1999</dd></div>
+      </dl>
+    </div>
+    <div class="dcard">
+      <h3>Endocet</h3>
+      <p class="dmeta">5-325 mg · Brand · Par Pharmaceutical</p>
+      <dl>
+        <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.1140</span>
+          <span class="asof">$0.1674 less than Percocet</span></dd></div>
+        <div class="prow"><dt>Change since Aug 2025</dt><dd>↑ Up 3.1%</dd></div>
+        <div class="prow"><dt>Brand or generic</dt><dd>Brand</dd></div>
+        <div class="prow"><dt>Marketing start</dt><dd>Jun 15, 2004</dd></div>
+      </dl>
+    </div>
+    <div class="dcard">
+      <h3>Oxycodone/APAP</h3>
+      <p class="dmeta">5-325 mg · Generic · Amneal</p>
+      <dl>
+        <div class="prow"><dt>NADAC per unit</dt><dd><span class="amount">$0.0912</span>
+          <span class="asof">$0.1902 less than Percocet</span></dd></div>
+        <div class="prow"><dt>Change since Aug 2025</dt>
+          <dd class="nodata">Not comparable — first surveyed Mar 2026</dd></div>
+        <div class="prow"><dt>Brand or generic</dt><dd>Generic</dd></div>
+        <div class="prow"><dt>Marketing start</dt>
+          <dd class="nodata">Not reported</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <p class="provenance">Source: NADAC (CMS) and openFDA NDC · prices as of Aug 12, 2026 ·
+     comparison computed, not fetched</p>
+
+  <!-- ===================== TWO-SERIES CHART ===================== -->
+  <section class="block" style="margin-top:var(--space-12)" aria-labelledby="h-hist">
+    <h2 id="h-hist" class="caps">Price history</h2>
+
+    <svg class="chart" viewBox="0 0 760 260" role="img"
+         aria-label="Weekly NADAC price per unit, August 2025 to August 2026. Percocet declines from $0.3212 to $0.2814. Endocet rises from $0.1106 to $0.1140. Oxycodone slash APAP generic begins in March 2026 at $0.0951 and declines to $0.0912.">
+      <g stroke="var(--chart-grid)" stroke-width="1">
+        <line x1="46" y1="20"  x2="760" y2="20"/>
+        <line x1="46" y1="75"  x2="760" y2="75"/>
+        <line x1="46" y1="130" x2="760" y2="130"/>
+        <line x1="46" y1="185" x2="760" y2="185"/>
+      </g>
+      <g fill="var(--text-secondary)" font-size="11" font-family="var(--font-numeric)">
+        <text x="0" y="24">$0.32</text>
+        <text x="0" y="79">$0.24</text>
+        <text x="0" y="134">$0.16</text>
+        <text x="0" y="189">$0.08</text>
+      </g>
+
+      <!-- Baseline series: space blue -->
+      <polyline fill="none" stroke="var(--chart-line)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="60,22 110,26 160,31 210,29 260,36 310,41 360,39 410,46 460,44 510,51 560,49 610,55 660,53 700,58"/>
+      <text x="708" y="62" class="serieslabel" fill="var(--chart-line)">Percocet</text>
+
+      <!-- Comparison series: cinnamon. Differs in value AND temperature. -->
+      <polyline fill="none" stroke="var(--chart-compare)" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="60,168 110,167 160,169 210,166 260,168 310,165 360,167 410,164 460,166 510,163 560,165 610,162 660,164 700,163"/>
+      <text x="708" y="167" class="serieslabel" fill="var(--cinnamon)">Endocet</text>
+
+      <!-- Third series: neutral. A third hue would break the two-colour rule,
+           so it is drawn in text-secondary with a dashed stroke — distinguished
+           by pattern, not by adding colour. -->
+      <polyline fill="none" stroke="var(--text-secondary)" stroke-width="2"
+                stroke-dasharray="5 4" stroke-linejoin="round" stroke-linecap="round"
+                points="410,176 460,178 510,177 560,179 610,178 660,180 700,179"/>
+      <text x="708" y="183" class="serieslabel" fill="var(--text-secondary)">Generic</text>
+
+      <g fill="var(--text-secondary)" font-size="11">
+        <text x="60" y="248">Aug 2025</text>
+        <text x="360" y="248" text-anchor="middle">Feb 2026</text>
+        <text x="700" y="248" text-anchor="end">Aug 2026</text>
+      </g>
+    </svg>
+
+    <p class="gapnote" style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
+      The generic series begins in March 2026 because that is when it first
+      appeared in NADAC — not because the price was zero before then.
+    </p>
+
+    <details class="datatable" style="margin-top:var(--space-6)">
+      <summary style="cursor:pointer;font-size:var(--step--1);color:var(--accent)">
+        View as table — 52 weeks × 3 products</summary>
+      <p style="margin-top:var(--space-4);font-size:var(--step--1);color:var(--text-secondary)">
+        Required, not optional. A multi-series chart is the least accessible
+        thing on the site — ui-spec §3.</p>
+    </details>
+
+    <p class="provenance">Source: NADAC (CMS) · weekly survey</p>
+  </section>
+
+  <!-- ===================== EMPTY STATE ===================== -->
+  <div class="states" style="margin-top:var(--space-12)">
+    <p class="caps">Below: the states this route must also handle</p>
+
+    <div class="empty" style="margin-top:var(--space-8)">
+      <span class="caps" style="display:block;margin-bottom:var(--space-6)">
+        One drug selected</span>
+      <h2>Add a second drug to see how they differ</h2>
+      <p>You have Percocet selected. Comparison needs at least two — search for
+         another product, or start from the alternatives on any drug page.</p>
+      <p style="margin-top:var(--space-6)">
+        <a class="btn btn-primary" href="search.html">Search for a drug</a>
+      </p>
+    </div>
+
+    <div class="empty">
+      <span class="caps" style="display:block;margin-bottom:var(--space-6)">
+        Nothing selected — cold load of a bare URL</span>
+      <h2>Nothing to compare yet</h2>
+      <p>This page reads its contents from the URL, so a shared link always
+         opens the same comparison. This one is empty.</p>
+      <p style="margin-top:var(--space-6)">
+        <a class="btn btn-primary" href="search.html">Search for a drug</a>
+      </p>
+    </div>
+  </div>
+</main>
+
+<div class="tray">
+  <div class="shell tray-inner">
+    <span class="lbl">Comparing</span>
+    <span class="chips">
+      <span class="chip">Percocet</span>
+      <span class="chip">Endocet</span>
+      <span class="chip">Oxycodone/APAP</span>
+    </span>
+    <button class="btn">Copy link</button>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="shell">
+    <p style="margin-bottom:var(--space-3)">
+      <a href="search.html">/search</a>
+      <a href="drug-detail.html">/drug/[rxcui]</a>
+      <a href="compare.html">/compare</a>
+    </p>
+    Sketch only · not a real page · data shown is illustrative.
+    Structure follows <code>docs/ui-spec.md</code> and the W4 definition of done.
+  </div>
+</footer>
+
+</body>
+</html>
