@@ -7,7 +7,8 @@ import boundaries from "eslint-plugin-boundaries";
 /**
  * Module boundaries.
  *
- *   app       routes, layouts, route handlers      → features, ui, lib
+ *   app       routes, layouts, route handlers      → feature, ui, lib,
+ *                                                    server
  *   server    GraphQL BFF: schema, resolvers,      → lib
  *             upstream clients
  *   feature   slices: drug, search, compare        → ui, lib
@@ -20,6 +21,13 @@ import boundaries from "eslint-plugin-boundaries";
  *
  * Nothing imports `app`. `feature` and `server` never import each other —
  * they meet on the generated types in `lib/gql/` and nowhere else.
+ *
+ * `app → server` exists so the GraphQL BFF can be mounted from a route
+ * handler (ADR-003). The grant is coarser than that one need: it also lets a
+ * page component import an upstream client. That is accepted, and covered by
+ * a second guard — every module under `src/server/` opens with
+ * `import "server-only"`, which fails the build if a client component ever
+ * reaches one.
  *
  * Features are reachable only through their `index.ts` barrel. Deep paths
  * into a slice's internals are rejected, which is what makes the barrel a
@@ -63,6 +71,12 @@ const eslintConfig = defineConfig([
             {
               from: { element: { type: "app" } },
               allow: { to: { element: { types: { anyOf: ["ui", "lib"] } } } },
+            },
+            {
+              // Mounting the BFF from `app/api/graphql/route.ts` — ADR-003.
+              // `server-only` is the second guard on this edge.
+              from: { element: { type: "app" } },
+              allow: { to: { element: { type: "server" } } },
             },
             {
               // Through the barrel only. A deep path into a slice is denied
