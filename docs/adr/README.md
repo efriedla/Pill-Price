@@ -5,59 +5,58 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| 001 | Rendering strategy per route | **not yet written** |
-| 002 | Styling and design tokens | **not yet written** |
-| 003 | Module boundaries | **not yet written** |
+| [001](001-rendering-strategy.md) | Rendering strategy per route | accepted |
+| [002](002-styling-and-design-tokens.md) | Styling and design tokens | accepted |
+| [003](003-module-boundaries.md) | Module boundaries | accepted |
+| 004 | BFF + schema design | W2 |
+| 005 | Static/dynamic split for `/search` and `/drug/[rxcui]` | W3 |
+| 006 | URL-as-state over a client store | W4 |
+| 007 | Performance budgets + enforcement | W6 |
+| 008 | Contentful guides *(optional)* | W7 |
 
-## Decisions the W1 scaffold assumed
+## What the W1 scaffold assumed, and where it landed
 
-The scaffold had to pick something in order to compile. Each item below is a
-*provisional* choice awaiting the ADR that either ratifies it or replaces it.
-None of them are load-bearing enough to be expensive to reverse today, and all
-of them get more expensive to reverse every week.
+The scaffold had to pick something in order to compile. Every provisional choice
+it made has now been either ratified or replaced by ADR-001/002/003 above. This
+section records what moved, so the trail is legible without diffing.
 
-**ADR-002 — styling and design tokens**
+**Ratified as-is.**
 
-- Tailwind v4 with the token layer bridged through `@theme inline` in
-  `src/app/globals.css`. Only *semantic* tokens are bridged; raw palette values
-  (`--cinnamon`, `--lavender`, …) are deliberately not reachable as utilities,
-  so `text-cinnamon` cannot be written by accident. See ui-spec §13.
-- An ESLint rule rejects hex literals anywhere in `src/` outside
-  `src/styles/tokens.css`.
-- Typefaces remain placeholders — ui-spec §10 is still open. When chosen, load
-  them with `next/font` in the root layout and repoint `--font-display`,
-  `--font-body`, and `--font-numeric`. Nothing else should change.
+- Tailwind v4 with the token layer bridged through `@theme inline`, only
+  semantic tokens exposed, raw hex a lint error outside `src/lib/tokens.css`
+  (ADR-002).
+- The five-layer graph, default-deny, features reachable only through their
+  `index.ts` barrel, asserted on every CI run by `tests/boundaries.test.ts`
+  (ADR-003).
 
-**ADR-003 — module boundaries**
+**Changed by an ADR.**
 
-Four layers, one direction of travel:
+- **`app → server` is now granted** (ADR-003). The scaffold implemented the
+  original spec literally, which left a GraphQL route handler at
+  `app/api/graphql/route.ts` unable to import its own schema — W2 blocked on day
+  one. The edge is added; `import "server-only"` in every `src/server/` module
+  is the second guard on it. `feature ⇸ server` is untouched, and that is the
+  boundary that was actually carrying the weight.
+- **Cache Components will be enabled** (ADR-001). This is Next 16, where the
+  static/dynamic boundary is at the component level rather than the route level,
+  so the scaffold's route-level default is superseded by a static shell plus
+  `use cache` functions whose lifetimes match each upstream's real freshness.
+  The roadmap's W2 mention of `unstable_cache` is superseded with it.
 
-```
-app  →  feature  →  ui  →  lib
-        (never feature → feature)
-```
+**Still open, deliberately.**
 
-- `app` — routes and layouts; composes features and ui
-- `feature` — a vertical slice (`search`, `compare`, `drug-detail`); owns its
-  own data fetching and state
-- `ui` — presentational primitives; knows nothing about the domain
-- `lib` — pure helpers, clients, schemas; imports nothing but `lib`
+- **Typefaces** — ui-spec §10. `--font-display`, `--font-body`, and
+  `--font-numeric` hold system-stack placeholders. When the faces are chosen
+  they load through `next/font` in the root layout and those three tokens are
+  repointed; nothing else changes. `--font-numeric` must carry true tabular
+  figures or `/compare`'s price columns will not align.
+- **The static/dynamic cutoff** for `/drug/[rxcui]` — ADR-005 owns the number
+  and has to defend it.
 
-Enforced by `eslint-plugin-boundaries` and, more usefully, asserted on every CI
-run by `tests/boundaries.test.ts`, which lints synthetic violations of each
-edge and fails if they are *not* rejected.
+## Related, not ADR material
 
-The rule that earns its keep is `feature → feature`. Without it two slices
-quietly grow a shared dependency, and "independently led a complex feature end
-to end" stops being a true sentence.
-
-**ADR-001 — rendering strategy**
-
-Untouched. Only `/` exists, and it is static. The real decision arrives with
-`/search` and `/drug/[rxcui]` in W3.
-
-Related: `tsc` runs with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+`tsc` runs with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
 `noUnusedLocals/Parameters`, and `verbatimModuleSyntax` on top of `strict`. The
-root layout is typed by hand rather than with Next's generated `LayoutProps`,
-so `npm run typecheck` is a standalone CI check that does not require a build
-to have run first.
+root layout is typed by hand rather than with Next's generated `LayoutProps`, so
+`npm run typecheck` is a standalone CI check that does not require a build to
+have run first.

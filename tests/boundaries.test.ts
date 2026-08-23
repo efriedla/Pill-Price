@@ -109,5 +109,11 @@ describe("module boundaries", () => {
     it("server importing lib", async () => {
       expect(await lint("src/server/ok.ts", imports.lib)).toHaveLength(0);
     });
+
+    // ADR-003. The BFF is mounted from a route handler, so `app` has to be
+    // able to reach the schema and resolvers.
+    it("app importing server", async () => {
+      expect(await lint("src/app/api/graphql/route.ts", imports.server)).toHaveLength(0);
+    });
   });
 });
