@@ -9,13 +9,29 @@ const dirname = import.meta.dirname;
 
 const alias = { "@": path.join(dirname, "src") };
 
+/**
+ * `src/server/*` modules open with `import "server-only"`, which throws unless
+ * the resolver picks React's `react-server` condition. Unit tests run under
+ * jsdom and never do, so importing the schema for its own sake would fail on
+ * the marker rather than on anything real. Point the marker at the same empty
+ * module the `react-server` condition would have resolved to.
+ *
+ * This does not weaken the boundary: the rule that stops client code importing
+ * `src/server` is enforced by ESLint (`tests/boundaries.test.ts`), and the
+ * `server-only` throw remains live in the Next build.
+ */
+const unitAlias = {
+  ...alias,
+  "server-only": path.join(dirname, "node_modules/server-only/empty.js"),
+};
+
 export default defineConfig({
   test: {
     projects: [
       {
         // Plain unit tests: pure functions and component behaviour that does
         // not need a real browser. Fast, runs on every commit.
-        resolve: { alias },
+        resolve: { alias: unitAlias },
         plugins: [react()],
         test: {
           name: "unit",

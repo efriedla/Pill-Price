@@ -45,3 +45,9 @@ storybook-static
 
 # local agent/editor settings
 .claude/settings.local.json
+
+# Agent worktrees are full checkouts, node_modules included — hundreds of MB of
+# untracked files sitting inside the repo, where a `git add -A` would try to
+# stage every one of them. Scoped to `worktrees/` rather than all of `.claude/`
+# so shared agent config stays committable.
+.claude/worktrees/
