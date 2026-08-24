@@ -1,0 +1,117 @@
+{
+ "results": [
+  {
+   "ndc_description": "12HR NASAL DECONGEST ER 120 MG",
+   "ndc": "24385005452",
+   "nadac_per_unit": "0.26341",
+   "effective_date": "2025-12-17",
+   "pricing_unit": "EA",
+   "pharmacy_type_indicator": "C/I",
+   "otc": "Y",
+   "explanation_code": "1",
+   "classification_for_rate_setting": "G",
+   "corresponding_generic_drug_nadac_per_unit": "",
+   "corresponding_generic_drug_effective_date": null,
+   "as_of_date": "2026-01-07"
+  }
+ ],
+ "count": 998332,
+ "schema": {
+  "b391aa55-d8f1-5894-be06-ea28d64a4186": {
+   "fields": {
+    "ndc_description": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "NDC Description"
+    },
+    "ndc": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "NDC"
+    },
+    "nadac_per_unit": {
+     "type": "numeric",
+     "precision": "10",
+     "scale": "5",
+     "mysql_type": "decimal",
+     "description": "NADAC Per Unit"
+    },
+    "effective_date": {
+     "type": "varchar",
+     "mysql_type": "date",
+     "description": "Effective Date"
+    },
+    "pricing_unit": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "Pricing Unit"
+    },
+    "pharmacy_type_indicator": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "Pharmacy Type Indicator"
+    },
+    "otc": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "OTC"
+    },
+    "explanation_code": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "Explanation Code"
+    },
+    "classification_for_rate_setting": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "Classification for Rate Setting"
+    },
+    "corresponding_generic_drug_nadac_per_unit": {
+     "type": "text",
+     "mysql_type": "text",
+     "description": "Corresponding Generic Drug NADAC Per Unit"
+    },
+    "corresponding_generic_drug_effective_date": {
+     "type": "varchar",
+     "mysql_type": "date",
+     "description": "Corresponding Generic Drug Effective Date"
+    },
+    "as_of_date": {
+     "type": "varchar",
+     "mysql_type": "date",
+     "description": "As of Date"
+    }
+   }
+  }
+ },
+ "query": {
+  "limit": 1,
+  "resources": [
+   {
+    "id": "b391aa55-d8f1-5894-be06-ea28d64a4186",
+    "alias": "t"
+   }
+  ],
+  "offset": 0,
+  "count": true,
+  "results": true,
+  "schema": true,
+  "keys": true,
+  "format": "json",
+  "rowIds": false,
+  "properties": [
+   "ndc_description",
+   "ndc",
+   "nadac_per_unit",
+   "effective_date",
+   "pricing_unit",
+   "pharmacy_type_indicator",
+   "otc",
+   "explanation_code",
+   "classification_for_rate_setting",
+   "corresponding_generic_drug_nadac_per_unit",
+   "corresponding_generic_drug_effective_date",
+   "as_of_date"
+  ]
+ }
+}
