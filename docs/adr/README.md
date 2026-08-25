@@ -8,7 +8,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [001](001-rendering-strategy.md) | Rendering strategy per route | accepted |
 | [002](002-styling-and-design-tokens.md) | Styling and design tokens | accepted |
 | [003](003-module-boundaries.md) | Module boundaries | accepted |
-| 004 | BFF + schema design | W2 |
+| [004](004-bff-and-schema-design.md) | BFF and schema design | accepted |
 | 005 | Static/dynamic split for `/search` and `/drug/[rxcui]` | W3 |
 | 006 | URL-as-state over a client store | W4 |
 | 007 | Performance budgets + enforcement | W6 |
