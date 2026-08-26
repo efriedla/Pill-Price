@@ -20,7 +20,7 @@ If there is no ADR, this PR should not exist yet — go write the decision first
 
 ## Verification
 
-- [ ] `npm run lint` · `npm run typecheck` · `npm test` · `npm run build` pass locally
+- [ ] `npm run lint` · `npm run typecheck` · `npm run codegen:check` · `npm test` · `npm run build` pass locally
 - [ ] Loading, empty, and error states exist for every async surface touched
 - [ ] Keyboard-only pass over the changed UI; focus ring visible throughout
 - [ ] No raw hex outside `src/styles/tokens.css`
