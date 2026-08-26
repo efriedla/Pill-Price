@@ -12,6 +12,7 @@
     "build-storybook": "storybook build",
     "typecheck": "tsc --noEmit",
     "codegen": "graphql-codegen",
+    "snapshot:nadac": "tsx --conditions=react-server scripts/snapshot-nadac.ts",
     "codegen:check": "graphql-codegen --check",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
@@ -53,6 +54,7 @@
     "playwright": "latest",
     "storybook": "^10.5.10",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "vite": "latest",
     "vitest": "latest"
