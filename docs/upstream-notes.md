@@ -151,6 +151,22 @@ NADAC is published as **one dataset per calendar year**, each with its own UUID:
 | 2025 | `ae004d7f-5799-5de3-91ec-f1247f1a5452` |
 | 2026 | `b391aa55-d8f1-5894-be06-ea28d64a4186` |
 
+> **Correction, 2026-08-26.** The 2026 ID in the table above is **dead** — it now
+> returns HTTP 400. The live 2026 distribution is
+> `16fd6484-2a77-56b4-bf18-4a7d70fb7924`. The ID rotated in **three days**, not
+> twelve months: the identifier changes on *republish*, not per calendar year, and
+> the dataset's `modified` moved to 2026-08-25. The paragraph below is left as
+> captured, but "silently serves stale prices from 2027-01-01" is wrong in both
+> directions — it breaks within a week, and it breaks loudly. Anything reproducing
+> §6 against the old ID will get a 400. Measured in
+> `docs/adr/009-nadac-on-the-request-path.md`.
+>
+> Two smaller corrections from the same run: the metastore index is **775 KB**
+> plain, and the 1.1 MB figure is the `?show-reference-ids=true` variant — which
+> is **required**, because the plain response omits `distribution[].identifier`
+> entirely. The 2026 dataset now holds **1,028,250** rows, up from the 998,332
+> quoted at the end of this section.
+
 Hard-coding the 2026 UUID means the app silently serves stale prices from
 2027-01-01. Resolving it requires the metastore index at
 `/api/1/metastore/schemas/dataset/items`, which is **1.1 MB** and returns all 549

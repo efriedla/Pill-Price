@@ -13,6 +13,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | 006 | URL-as-state over a client store | W4 |
 | 007 | Performance budgets + enforcement | W6 |
 | 008 | Contentful guides *(optional)* | W7 |
+| [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5) | **proposed** |
 
 ## What the W1 scaffold assumed, and where it landed
 
@@ -52,6 +53,11 @@ section records what moved, so the trail is legible without diffing.
   figures or `/compare`'s price columns will not align.
 - **The static/dynamic cutoff** for `/drug/[rxcui]` — ADR-005 owns the number
   and has to defend it.
+
+<!-- 009 is dated before 005–008 on purpose: it is a W2 decision, and 005–008
+     are reserved for later weeks and already cross-referenced from ADR-001 and
+     the roadmap. It took the next free number rather than renumbering live
+     links in an accepted ADR. -->
 
 ## Related, not ADR material
 
