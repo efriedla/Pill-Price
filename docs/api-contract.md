@@ -1,7 +1,8 @@
 # API contract
 
-**Status:** draft — pricing freshness is blocked on
-[ADR-009](adr/009-nadac-on-the-request-path.md).
+**Status:** draft.
+**Pricing freshness:** decided — [ADR-009](adr/009-nadac-on-the-request-path.md)
+chose a **weekly snapshot, off the request path**.
 **Covers:** the schema in `src/server/schema.ts` as of 2026-08-26.
 
 Every field the BFF exposes, with its upstream source, its freshness, and its
@@ -23,6 +24,12 @@ what the resolvers must do, not a report of what they do.
 | **openFDA** | `api.fda.gov/drug/label.json` | none (key optional) | — | 240 req/min, 1,000 req/day anonymous |
 | **NADAC** | `data.medicaid.gov/api/1/datastore` | none | 1.5–2.7 s **filtered**, 0.7–1.9 s per 5,000 rows unfiltered | none published |
 
+**NADAC is never called during a request** (ADR-009). It is listed here because
+the weekly snapshot job calls it, and the job is subject to the same validation
+and failure handling as any other upstream client. Its query URL is
+`datastore/query/{datasetId}/{index}` — the dataset ID is pinned in config, and
+the weekly-rotating distribution ID is resolved server-side by CMS.
+
 Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements section
 (2026-08-26). None of the three returns rate-limit headers, and openFDA sends
 `cache-control: no-store` on every response — **all caching is ours to own.**
@@ -34,7 +41,7 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 | **per-request** | Fetched on every request. No cache layer. |
 | **cached (TTL)** | Served from cache; refreshed no more often than TTL. |
 | **snapshot (interval)** | Served from local storage written by a job on `interval`. Freshness is an *operational* property — a failed job serves stale data silently unless the row carries its own timestamp. |
-| **⛔ blocked** | ADR-009 has not been decided. Do not implement. |
+| **snapshot (weekly)** | The ADR-009 answer for everything NADAC-sourced. Written by a weekly job; resolvers never call NADAC on a request. A miss is a *published fact*, not an unknown — the snapshot is complete — so a price-less package costs exactly what a priced one costs. |
 
 ## `Query`
 
@@ -52,8 +59,8 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 | `tty: String!` | RxNorm `properties.tty` | as `drug` | Non-null. One of 19 term types. |
 | `isGeneric: Boolean!` | derived from `tty` | as `drug` | **Derived, not fetched.** The TTY→generic mapping is a product decision entangled with **Q7, open**; it must live in one documented place, not inline in a resolver. |
 | `packages: [Package!]!` | RxNorm `/rxcui/{id}/ndcs.json` | as `drug` | Non-null; empty is legitimate. **This is the fan-out:** one metformin ER 500 MG SCD returns **401 NDCs** (§1.4). Not a classic N+1 — one concept to hundreds of NDCs, which collapse back to a handful of price series. |
-| `price: Price` | NADAC | ⛔ **blocked on ADR-009** | Nullable, and **null is the typical case** — ~92% of packages have no published price (§3.3). Not an error, not a loading state. |
-| `priceHistory(range): PriceSeries!` | NADAC | ⛔ **blocked on ADR-009** | **Non-null series, possibly empty `points`.** The series itself always resolves so `coverage` can be reported; it is the *points* that may be absent. |
+| `price: Price` | NADAC snapshot | **snapshot (weekly)** | Nullable, and **null is the typical case** — ~92% of packages have no published price (§3.3). Not an error, not a loading state, and under a snapshot not a cache miss either: the table is complete, so `null` means "nothing is published," full stop. |
+| `priceHistory(range): PriceSeries!` | NADAC snapshot | **snapshot (weekly)** | **Non-null series, possibly empty `points`.** The series always resolves so `coverage` can be reported; the *points* may be absent. Note this is the field that needs full history (~102 MB) rather than the ~3 MB latest-price table — ADR-009 flags the retention shape as a decision the sync job will force. |
 | `alternatives(kind): [Drug!]!` | RxNorm `/rxcui/{id}/allrelated.json` | as `drug` | Non-null. **Which of 19 TTYs count is Q7, open** — the enum defers the question, it does not answer it. `conceptGroup` entries may have **no `conceptProperties` key at all** (`{"tty":"BPCK"}`); without a Zod `.optional()` this is a parse failure on a valid response (§1.3). |
 | `label: Label` | openFDA | cached, TTL TBD — `meta.last_updated` was one day stale when sampled | Nullable. **The ambiguity here is Q3, open, and it changes every resolver.** A label-less drug and a malformed query are **byte-identical 404s** (§2.1). Mapping 404 → partial-data notice silently swallows BFF query bugs in production. |
 
@@ -63,7 +70,7 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 | --- | --- | --- | --- |
 | `ndc: ID!` | RxNorm `ndcs.json` | as `drug` | 11 digits, no dashes. **Joins to NADAC with no normalization** — the one cross-source join that was easier than expected (§4). |
 | `description: String!` | RxNorm / NADAC `ndc_description` | as source | Non-null. If it comes from NADAC it is only available for the ~8% that are priced; sourcing it from RxNorm keeps it available for all packages. **Pick one and record it here** once ADR-009 lands. |
-| `price: Price` | NADAC | ⛔ **blocked on ADR-009** | Nullable; null is the typical case. |
+| `price: Price` | NADAC snapshot | **snapshot (weekly)** | Nullable; null is the typical case, and definitive rather than unknown. |
 
 ## `Price`
 
@@ -74,9 +81,9 @@ round-trip in exchange for nothing.
 
 | Field | Source | Freshness | Failure mode |
 | --- | --- | --- | --- |
-| `pricePerUnit: String!` | NADAC `nadac_per_unit` | ⛔ **blocked on ADR-009** | Non-null within a non-null `Price`. Never `""` — NADAC uses `""` *and* `null` for absent in the same record (§3.4); both normalise to a null `Price`, not to an empty string. |
-| `effectiveDate: String!` | NADAC `effective_date` | ⛔ **blocked on ADR-009** | ISO date as published. **The year in the dataset title is the publication year, not the coverage window** — 2026's rows start 2025-12-17 (§3.4). |
-| `asOf: String!` | **this side**, at ingest | ⛔ **blocked on ADR-009** | Non-null, and it is the field that makes staleness visible. Under a snapshot this is the only defence against a failed job serving old prices silently. Distinct from NADAC's own `as_of_date` column; if both are exposed they must be named apart. |
+| `pricePerUnit: String!` | NADAC `nadac_per_unit` | **snapshot (weekly)** | Non-null within a non-null `Price`. Never `""` — NADAC uses `""` *and* `null` for absent in the same record (§3.4); both normalise to a null `Price`, not to an empty string. |
+| `effectiveDate: String!` | NADAC `effective_date` | **snapshot (weekly)** | **Always rendered** — ADR-009 requires the published date to be visible next to every price. ISO date as published. **The year in the dataset title is the publication year, not the coverage window** — 2026's rows start 2025-12-17 (§3.4). |
+| `asOf: String!` | **this side**, when the snapshot job ran | **snapshot (weekly)** | Non-null. **Load-bearing, not informational** — ADR-009 makes this the only defence against a silently failed job. **Past 14 days (two missed weekly runs) the UI must show a staleness notice**; 14 rather than 7, because a single miss is indistinguishable from schedule jitter. Distinct from NADAC's own `as_of_date` column; if both are exposed they must be named apart. |
 
 > **Missing field: `unit`.** `PriceSeries.unit` exists; `Price` has none. A
 > per-package price without one is not comparable — NADAC's `pricing_unit` is a
@@ -89,11 +96,11 @@ round-trip in exchange for nothing.
 | --- | --- | --- | --- |
 | `PriceSeries.range: PriceRange!` | echoed from the argument | n/a | Echoed, so a client can tell what it got. |
 | `PriceSeries.granularity: Granularity!` | **server's choice** | n/a | Non-null, and **it is what the server actually returned**, not what was asked. The client must render what this says rather than what it requested. |
-| `PriceSeries.unit: String!` | NADAC `pricing_unit` | ⛔ **blocked on ADR-009** | Non-null and **constant across the series** — a series mixing `EA` and `ML` is not comparable and must not be assembled. |
-| `PriceSeries.points: [PricePoint!]!` | NADAC | ⛔ **blocked on ADR-009** | Non-null list; **empty is the common case.** |
-| `PricePoint.perUnit: String` | NADAC, rolled up | ⛔ **blocked on ADR-009** | **Nullable by design — null means nothing was published in this period**, which is distinct from a period that is absent from the list. A chart must render the gap, not interpolate across it. |
-| `PricePoint.observations: Int!` | count of raw rows rolled up | ⛔ **blocked on ADR-009** | Non-null; `0` is valid and pairs with a null `perUnit`. **Requires deduplication first** — NADAC returns the same `(ndc, effective_date, nadac_per_unit)` tuple more than once (§3.4), so a naive count inflates it. |
-| `Coverage.pricedPackages: Int!` | count | ⛔ **blocked on ADR-009** | Non-null. |
+| `PriceSeries.unit: String!` | NADAC `pricing_unit` | **snapshot (weekly)** | Non-null and **constant across the series** — a series mixing `EA` and `ML` is not comparable and must not be assembled. |
+| `PriceSeries.points: [PricePoint!]!` | NADAC snapshot | **snapshot (weekly)** | Non-null list; **empty is the common case.** |
+| `PricePoint.perUnit: String` | NADAC snapshot, rolled up | **snapshot (weekly)** | **Nullable by design — null means nothing was published in this period**, which is distinct from a period that is absent from the list. A chart must render the gap, not interpolate across it. |
+| `PricePoint.observations: Int!` | count of raw rows rolled up | **snapshot (weekly)** | Non-null; `0` is valid and pairs with a null `perUnit`. **Requires deduplication first** — NADAC returns the same `(ndc, effective_date, nadac_per_unit)` tuple more than once (§3.4), so a naive count inflates it. |
+| `Coverage.pricedPackages: Int!` | count against the snapshot | **snapshot (weekly)** | Non-null, and exact rather than provisional — the snapshot is complete, so this is a real denominator and not "what we happened to have cached." |
 | `Coverage.totalPackages: Int!` | RxNorm NDC count | as `drug` | Non-null. **Available even when pricing is entirely unavailable**, which is the point: it is what lets the UI say "no published price for 12 of 14 packages" instead of rendering an empty axis. |
 
 `Coverage` is the disclaimer's evidentiary basis. Of 401 NDCs for one metformin
@@ -135,21 +142,30 @@ ordinary traffic, not only by a fault injection.
 | Join | Batching |
 | --- | --- |
 | RxNorm concept → NDCs | One request per concept; 401 NDCs come back in one response. Collapse to price series before doing anything per-NDC. |
-| NDCs → NADAC | **Batching is nearly free** — a 401-value `IN` costs the same 2.7 s as a single-value filter. GET is length-limited (a 19 KB URL is a 400); **POST is not** (§3.5). Whether this happens on the request path at all is ADR-009. |
+| NDCs → NADAC | **Not batched, because not requested.** ADR-009 puts NADAC behind a weekly snapshot, so the request path never fans out to it at all. The job pages the dataset sequentially — ~206 requests of 5,000 rows, no filter ever issued, on the order of 2–4 minutes. The `IN`-batching and GET-length findings (§3.5) apply only to the request-path options that were not chosen. |
 | RxCUIs → openFDA | **Do not batch by `OR`.** It returns results ranked globally rather than grouped by key, so a DataLoader can get **zero rows for one key while the API reports success** (§2.4). Per-key requests are the only ones that guarantee coverage. **Q4, open.** |
 
 ## Open questions this document is waiting on
 
 | Q | Question | Blocks |
 | --- | --- | --- |
-| **Q5** | Does NADAC belong on the request path? | Every ⛔ row above. [ADR-009](adr/009-nadac-on-the-request-path.md), proposed. |
 | Q2 | Which of 78 SPLs is `Label`? | `Label.openFDALabel` |
 | Q3 | Is an openFDA 404 partial or fatal? | The whole degradation table |
 | Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
 | Q7 | Which TTYs are a generic alternative? | `alternatives`, `isGeneric` |
 | Q8 | Does search tolerate typos? | `search` |
 
-Q1 (freshness vs. identity) is **answered** by ADR-009's measurements and folded
-in above: the NADAC distribution UUID rotates on *republish*, not per calendar
-year — the ID captured 2026-08-23 was dead three days later (HTTP 400). Any TTL
-on that lookup is measured in hours. See `docs/upstream-notes.md` §3.1.
+**Q5 and Q1 are both closed** by [ADR-009](adr/009-nadac-on-the-request-path.md)
+and folded in above.
+
+Q5: NADAC is off the request path, behind a weekly snapshot. Q1: the distribution
+identifier rotates *weekly, by design* — NADAC republishes the whole CSV under a
+new filename and DKAN derives the distribution ID from file + version — but the
+**dataset** identifier is stable, and `datastore/query/{datasetId}/{index}`
+resolves the distribution server-side. So there is no short TTL to manage: the
+dataset ID is pinned, and a 400/404 at year rollover triggers re-resolution by
+exact title. See ADR-009 finding 6.
+
+One caveat carried from the ADR: dataset-ID stability is **inferred, not
+proven**. It surfaces as an alert rather than as bad data, but it is the
+assumption most worth watching.
