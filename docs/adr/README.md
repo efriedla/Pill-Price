@@ -13,7 +13,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | 006 | URL-as-state over a client store | W4 |
 | 007 | Performance budgets + enforcement | W6 |
 | 008 | Contentful guides *(optional)* | W7 |
-| [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5) | **proposed** |
+| [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5) | accepted |
 
 ## What the W1 scaffold assumed, and where it landed
 

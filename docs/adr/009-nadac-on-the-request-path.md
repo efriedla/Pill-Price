@@ -1,13 +1,7 @@
 # ADR-009: Does NADAC belong on the request path?
 
-**Status:** proposed
+**Status:** accepted
 **Date:** 2026-08-26
-
-<!-- SKELETON — Context and Options are drafted from the measurements in
-     docs/upstream-notes.md §3. The Decision, Consequences, and Revisit-if
-     sections are deliberately blank: this is Q5, a focused-hours decision
-     (roadmap W2), and it is the author's to make. Delete this comment when
-     the decision lands. -->
 
 <!-- Numbering: this ADR is dated before ADR-005..008, which are reserved by
      docs/adr/README.md for later weeks and are already cross-referenced from
@@ -103,12 +97,50 @@ schema, typing `nadac_per_unit` as `decimal(10,5)` — evidence for ADR-004's
 `pricing_unit` as a first-class column, which is the source for the `Price.unit`
 field the schema is missing.
 
+**6. The rotation has a cause, and there is a stable URL underneath it.**
+Finding 1 described a symptom. The distribution's own metadata gives the
+mechanism:
+
+```
+downloadURL:      .../nadac-national-average-drug-acquisition-cost-08-26-2026.csv
+%Ref:downloadURL: "0269807f992e95b066f2f62d3d4e99b6__1787658168__source"
+                   └─ file identifier ───────────┘  └─ version ─┘
+```
+
+NADAC republishes the entire CSV **weekly, under a new filename**. DKAN registers
+each as a new source version, and the distribution identifier is derived from
+*file + version*. A new distribution ID every week is therefore expected
+behaviour, not breakage: the 08-23 ID was not "dead," it was **superseded** on
+08-25. Rotation is weekly and by design, not yearly and accidental.
+
+More usefully, the **dataset** carries its own identifier —
+`fbb83258-11c7-47f5-8b18-5f8e79f7e704` for 2026 — and the datastore accepts a
+dataset ID plus a distribution index, resolving the distribution server-side:
+
+```
+GET /api/1/datastore/query/fbb83258-11c7-47f5-8b18-5f8e79f7e704/0
+→ 200, count 1,028,250, 0.64 s, resources resolved to 16fd6484-…
+```
+
+That URL does not change weekly. It removes the metastore fetch, the 1.16 MB
+index, and the title-matching contract from the normal path entirely.
+
+**The limit on this finding:** the distribution ID is *proven* to rotate; the
+dataset ID is *inferred* to be stable, because `upstream-notes.md` recorded only
+distribution IDs on 08-23 and there is no historical dataset ID to compare
+against. Supporting evidence: 2025's distribution ID has been unchanged since
+December, i.e. rotation stops when republishing stops, and the dataset ID is
+plainly per-year rather than per-file. The dataset ID **does** still change at
+year rollover, so title resolution is retained as a fallback — firing annually
+instead of weekly.
+
 **What this does to the options.** A and B are weakened: B's per-RxCUI cache pays
 the 1.5–2.7 s filter cost on every cold key, to populate a table that could have
 been pulled whole in 2–4 minutes. C is cheaper than it looked — bounded sync
-time, a 3 MB working set, and an incremental path via `>=` — but finding 1 moves
-its risk from "annual rotation" to "the ID under it can die any week," which
-makes UUID resolution the fragile part rather than the storage. D is unchanged.
+time, a 3 MB working set, and an incremental path via `>=`. Finding 1 appeared to
+move its risk to "the ID under it can die any week"; finding 6 withdraws that.
+The identifier is stable at the dataset level, and UUID resolution is a
+once-a-year concern rather than the fragile part. D is unchanged.
 
 ## Options considered
 
@@ -178,27 +210,75 @@ drug. Pricing lands in a later week behind whichever of B or C is chosen.
   are the ones a reviewer will look up. Defers the decision rather than making
   it, which is the failure mode the ADR rule exists to prevent.
 
-<!-- Add an Option E if none of these is what you'd actually do. -->
-
 ## Decision
 
-<!-- One sentence, active voice. If it is B or C, this section also has to
-     answer, because the resolvers cannot be written without them:
-       - the TTL of the price data, and the TTL of the distribution-UUID
-         lookup relative to it
-       - what is cached or stored for a miss
-       - what the UI shows while a cold path is resolving
-       - what the user is told about how old a price is -->
+**NADAC does not go on the request path. A weekly job snapshots the dataset into
+local storage, and resolvers read only that snapshot** — Option C.
+
+The four things resolvers cannot be written without:
+
+**Price-data TTL — one week, matching NADAC's own publication cadence.** The job
+runs weekly; the snapshot is what every resolver reads. A shorter interval would
+re-pull a dataset that has not changed, and a longer one would serve prices
+older than the upstream's own revision cycle.
+
+**Distribution-identifier TTL — none on the normal path; the dataset ID is
+pinned in config.** Queries go to `datastore/query/{datasetId}/{index}`, which
+resolves the weekly-rotating distribution server-side (finding 6). On a 400 or
+404 — the signal that the calendar year rolled over — the job re-resolves by the
+exact title pattern from the metastore index, pins the new dataset ID, and
+alerts. That reduces the fragile title-matching contract from a weekly
+dependency to an annual one, and it is the only path on which the 1.16 MB index
+is ever fetched.
+
+**What is stored for a miss — nothing.** Under a snapshot there is no such thing
+as a cache miss: the local table is complete, so an NDC absent from it is a
+published fact ("no acquisition cost for this package"), not an unknown. This is
+the property that makes C fit the data, because ~92% of lookups are that case
+and they resolve as fast as a hit.
+
+**What the user is told — the effective date always, and a staleness notice past
+14 days.** Every price renders with its NADAC `effective_date` visible. If the
+snapshot's own `asOf` exceeds 14 days — two missed weekly runs — the UI shows a
+staleness notice. Fourteen rather than seven, because a single miss is
+indistinguishable from schedule jitter and a warning that fires on jitter stops
+being read. There is no cold-path UI state to design, because there is no cold
+path.
 
 ## Consequences
 
-<!-- What becomes easier, what becomes harder, what you are committed to. -->
+**Easier.** The request path stops competing with the 200 ms budget: a price
+lookup becomes a local read, and misses cost the same as hits. The 2.7 s filtered
+scan, pagination, deduplication, and the `""`-versus-`null` encodings all move
+into a batch context where they are cheap to get right and easy to test. Batching
+stops mattering — one weekly scan replaces one scan per drug per week. The
+NADAC-down degraded state and the ordinary state become the same state, so the
+degradation path is exercised by normal traffic rather than only by fault
+injection.
+
+**Harder.** This project now has a storage layer and a scheduled job it did not
+have, landing inside W2. Freshness becomes an *operational* property: a silently
+failed job serves stale prices indefinitely, which is precisely what the `asOf`
+field and the 14-day notice exist to make visible. Backfilling price history
+means keeping ~102 MB rather than the ~3 MB a latest-price table needs, and that
+is a second decision the sync job's shape will force.
+
+**Committed to.** `Price.asOf` is now load-bearing rather than informational — it
+is the only defence against a dead job. The dataset ID is configuration, not a
+constant, and the annual-rollover path has to be exercised at least once before
+January. `docs/api-contract.md`'s ⛔ rows can now be written.
 
 ## Revisit if
 
-<!-- The specific signal. Candidates, if they are the right ones:
-     - NADAC's query API gains a real index, or a "changed since" filter,
-       and the 2.7 s floor stops being a floor
-     - coverage rises materially above 8% on the drugs users actually search
-     - community-submitted prices (issue #11) become a second price source,
-       which changes what "no published price" means -->
+- **The dataset identifier turns out to rotate too.** It is inferred stable, not
+  proven (finding 6). The annual-rollover fallback fires and alerts, so this
+  surfaces as an alert rather than as bad data — but if it fires more than once a
+  year, the pinning strategy is wrong.
+- **NADAC's query API gains a real index, or a genuine "changed since" beyond the
+  `>=` scan**, and the 2.7 s floor stops being a floor. That is the signal a
+  request-path option becomes viable again.
+- **Coverage rises materially above 8%** on the drugs users actually search. The
+  "misses are the common case" premise is doing a lot of work here.
+- **Community-submitted prices (issue #11) become a second price source.** That
+  changes what "no published price" means, and the snapshot stops being the only
+  thing a resolver reads.
