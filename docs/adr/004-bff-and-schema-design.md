@@ -279,3 +279,12 @@ this ADR.
 - **A second consumer of the schema appears.** Every ratified choice above traded
   strictness for the fact that this schema currently has exactly one client, and
   those trades should be re-priced when that stops being true.
+- **A price arrives from somewhere other than an upstream API** — the
+  community-submitted prices proposed in
+  [#11](https://github.com/efriedla/Pill-Price/issues/11), which exist precisely
+  because the 92% above has no upstream answer. That is not a new field on
+  `Price`: a user-reported consumer price and a NADAC acquisition cost are
+  different quantities, and `PriceSeries` guarantees a constant unit across a
+  series. It would need its own type carrying its own provenance, and it would
+  require amending the rule in `CONTRIBUTING.md` that every displayed value
+  traces to a real API field. Both are decisions this ADR does not make.
