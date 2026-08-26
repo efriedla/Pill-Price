@@ -42,15 +42,20 @@ lockfile.
 
 ## Before you open a PR
 
-All four must pass. They are the same four checks CI runs, as four independent
+All five must pass. They are the same five checks CI runs, as five independent
 required jobs.
 
 ```bash
 npm run lint
 npm run typecheck
+npm run codegen:check
 npm test
 npm run build
 ```
+
+`codegen:check` fails if `src/lib/gql/types.generated.ts` no longer matches the
+SDL in `src/server/schema.ts`. If it fails, run `npm run codegen` and commit the
+result — never hand-edit the generated file.
 
 `npm test` runs two projects: `unit` (jsdom, fast) and `storybook` (stories
 executed in real Chromium, which is what makes the a11y checks meaningful).

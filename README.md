@@ -8,9 +8,15 @@ this app is labelled accordingly — see [`docs/ui-spec.md`](docs/ui-spec.md) §
 
 ## Status
 
-**Week 1 of 8.** Foundation only — design system, module boundaries, and CI.
-There is no data layer yet; the GraphQL BFF lands in week 2. The plan is in
-[`docs/roadmap.md`](docs/roadmap.md).
+**Week 2 of 8** — the data layer. The GraphQL schema is written and its types
+are generated, but **there is no data yet**: resolvers are stubs that return
+`null` and empty lists rather than fixtures, because a stub that invented a
+price would read as a working feature. Upstream clients, batching, caching, and
+the error taxonomy are the rest of the week.
+
+Week 1 is closed: design system, module boundaries, and CI. The plan is in
+[`docs/roadmap.md`](docs/roadmap.md); the schema's reasoning is in
+[ADR-004](docs/adr/004-bff-and-schema-design.md).
 
 ## Local setup
 
@@ -23,14 +29,19 @@ npm run storybook     # http://localhost:6006
 
 ## Checks
 
-All four are required to merge ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+All five are required to merge ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ```bash
-npm run lint         # eslint, incl. module boundaries and the no-raw-hex rule
-npm run typecheck    # tsc --noEmit, strict + noUncheckedIndexedAccess
-npm test             # vitest: unit (jsdom) + stories (real Chromium)
-npm run build        # next build
+npm run lint           # eslint, incl. module boundaries and the no-raw-hex rule
+npm run typecheck      # tsc --noEmit, strict + noUncheckedIndexedAccess
+npm run codegen:check  # generated GraphQL types still match the SDL
+npm test               # vitest: unit (jsdom) + stories (real Chromium)
+npm run build          # next build
 ```
+
+`codegen:check` fails if `src/lib/gql/types.generated.ts` has drifted from the
+schema. Run `npm run codegen` and commit the result; never hand-edit generated
+output.
 
 `npm test` runs two projects. `npm run test:unit` skips the browser when you
 just want the fast loop.
@@ -42,7 +53,9 @@ src/app/          routes, layouts, route handlers
 src/server/       GraphQL BFF: schema, resolvers, upstream clients
 src/features/     vertical slices: drug, search, compare
 src/ui/           presentational primitives
-src/lib/          types, formatters, tokens, generated GraphQL
+src/lib/          types, formatters, tokens
+src/lib/gql/      generated GraphQL types — the only thing features/ and
+                  server/ share; regenerate with `npm run codegen`
 docs/adr/         decision records — read before changing architecture
 docs/sketches/    throwaway layout sketches against the real tokens
 docs/ui-spec.md   field mapping, colour semantics, copy rules
