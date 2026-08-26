@@ -1,0 +1,155 @@
+# API contract
+
+**Status:** draft — pricing freshness is blocked on
+[ADR-009](adr/009-nadac-on-the-request-path.md).
+**Covers:** the schema in `src/server/schema.ts` as of 2026-08-26.
+
+Every field the BFF exposes, with its upstream source, its freshness, and its
+failure mode. This is the Week 2 definition-of-done artifact and the document
+`README.md` promises.
+
+Three things it is not. It is not the schema — the SDL in `src/server/schema.ts`
+is normative, and this describes it. It is not a tutorial; entry is narrow by
+[ADR-004](adr/004-bff-and-schema-design.md) and there are exactly two roots. And
+it does not describe implemented behaviour: **every resolver is currently a stub
+returning `null` or `[]`.** The failure-mode column below is a specification of
+what the resolvers must do, not a report of what they do.
+
+## Upstreams
+
+| Key | Base | Auth | Measured latency | Documented limit |
+| --- | --- | --- | --- | --- |
+| **RxNorm** | `rxnav.nlm.nih.gov/REST` | none | 110–250 ms warm, ~1.2 s cold | courtesy 20 req/s |
+| **openFDA** | `api.fda.gov/drug/label.json` | none (key optional) | — | 240 req/min, 1,000 req/day anonymous |
+| **NADAC** | `data.medicaid.gov/api/1/datastore` | none | 1.5–2.7 s **filtered**, 0.7–1.9 s per 5,000 rows unfiltered | none published |
+
+Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements section
+(2026-08-26). None of the three returns rate-limit headers, and openFDA sends
+`cache-control: no-store` on every response — **all caching is ours to own.**
+
+## Freshness vocabulary
+
+| Term | Means |
+| --- | --- |
+| **per-request** | Fetched on every request. No cache layer. |
+| **cached (TTL)** | Served from cache; refreshed no more often than TTL. |
+| **snapshot (interval)** | Served from local storage written by a job on `interval`. Freshness is an *operational* property — a failed job serves stale data silently unless the row carries its own timestamp. |
+| **⛔ blocked** | ADR-009 has not been decided. Do not implement. |
+
+## `Query`
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `drug(rxcui: ID!): Drug` | RxNorm `/rxcui/{id}/properties.json` | cached, TTL TBD — RxNorm concepts are effectively immutable, so this should be the longest TTL in the app | **`null` is a legitimate result and must be distinguished from an error.** Unknown RxCUIs return **HTTP 200 with `{}`** (§1.1) — there is no status-code signal. A Zod schema modelling `properties` as optional parses `{}` happily; the absence has to be asserted, not fallen into. Note `rxcuistatus.json` breaks the pattern: **HTTP 404 with the plain-text body `Not found`** (§1.2). Calling `res.json()` on that path throws `SyntaxError`, and §1.2 names it the single most likely source of an unhandled 500 in the BFF. |
+| `search(term: String!): [Drug!]!` | RxNorm `/drugs.json?name=` | **per-request, uncached** (roadmap W2) | Non-null list; empty is the empty state, never an error. `drugGroup.name` is `null` on *every* response, populated or not (§1.3) — it is not an emptiness signal. **No typo tolerance:** `metfromin` returns *merbromin* at rank 1 with metformin absent from the top 10 (§1.5). Whether to build it is **Q8, open**. |
+
+## `Drug`
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `rxcui: ID!` | RxNorm | as `drug` | Echoed from the request path. Do not read it from `relatedGroup.rxcui`, which is `null` even when the RxCUI was in the request URL (§1.3). |
+| `name: String!` | RxNorm `properties.name` | as `drug` | Non-null. If properties came back `{}`, the *drug* is null — this field never degrades to `""`. |
+| `tty: String!` | RxNorm `properties.tty` | as `drug` | Non-null. One of 19 term types. |
+| `isGeneric: Boolean!` | derived from `tty` | as `drug` | **Derived, not fetched.** The TTY→generic mapping is a product decision entangled with **Q7, open**; it must live in one documented place, not inline in a resolver. |
+| `packages: [Package!]!` | RxNorm `/rxcui/{id}/ndcs.json` | as `drug` | Non-null; empty is legitimate. **This is the fan-out:** one metformin ER 500 MG SCD returns **401 NDCs** (§1.4). Not a classic N+1 — one concept to hundreds of NDCs, which collapse back to a handful of price series. |
+| `price: Price` | NADAC | ⛔ **blocked on ADR-009** | Nullable, and **null is the typical case** — ~92% of packages have no published price (§3.3). Not an error, not a loading state. |
+| `priceHistory(range): PriceSeries!` | NADAC | ⛔ **blocked on ADR-009** | **Non-null series, possibly empty `points`.** The series itself always resolves so `coverage` can be reported; it is the *points* that may be absent. |
+| `alternatives(kind): [Drug!]!` | RxNorm `/rxcui/{id}/allrelated.json` | as `drug` | Non-null. **Which of 19 TTYs count is Q7, open** — the enum defers the question, it does not answer it. `conceptGroup` entries may have **no `conceptProperties` key at all** (`{"tty":"BPCK"}`); without a Zod `.optional()` this is a parse failure on a valid response (§1.3). |
+| `label: Label` | openFDA | cached, TTL TBD — `meta.last_updated` was one day stale when sampled | Nullable. **The ambiguity here is Q3, open, and it changes every resolver.** A label-less drug and a malformed query are **byte-identical 404s** (§2.1). Mapping 404 → partial-data notice silently swallows BFF query bugs in production. |
+
+## `Package`
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `ndc: ID!` | RxNorm `ndcs.json` | as `drug` | 11 digits, no dashes. **Joins to NADAC with no normalization** — the one cross-source join that was easier than expected (§4). |
+| `description: String!` | RxNorm / NADAC `ndc_description` | as source | Non-null. If it comes from NADAC it is only available for the ~8% that are priced; sourcing it from RxNorm keeps it available for all packages. **Pick one and record it here** once ADR-009 lands. |
+| `price: Price` | NADAC | ⛔ **blocked on ADR-009** | Nullable; null is the typical case. |
+
+## `Price`
+
+Money is `String!` throughout — [ADR-004](adr/004-bff-and-schema-design.md), Q6,
+closed. NADAC ships `"0.02902"` as a string and the upstream schema types it
+`decimal(10,5)`; parsing it into a float to serialise it back is a lossy
+round-trip in exchange for nothing.
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `pricePerUnit: String!` | NADAC `nadac_per_unit` | ⛔ **blocked on ADR-009** | Non-null within a non-null `Price`. Never `""` — NADAC uses `""` *and* `null` for absent in the same record (§3.4); both normalise to a null `Price`, not to an empty string. |
+| `effectiveDate: String!` | NADAC `effective_date` | ⛔ **blocked on ADR-009** | ISO date as published. **The year in the dataset title is the publication year, not the coverage window** — 2026's rows start 2025-12-17 (§3.4). |
+| `asOf: String!` | **this side**, at ingest | ⛔ **blocked on ADR-009** | Non-null, and it is the field that makes staleness visible. Under a snapshot this is the only defence against a failed job serving old prices silently. Distinct from NADAC's own `as_of_date` column; if both are exposed they must be named apart. |
+
+> **Missing field: `unit`.** `PriceSeries.unit` exists; `Price` has none. A
+> per-package price without one is not comparable — NADAC's `pricing_unit` is a
+> real column with values `EA`/`ML`/`GM`. Authoring it is the user's (roadmap
+> rule 3); this row is a placeholder so the gap is not lost.
+
+## `PriceSeries`, `PricePoint`, `Coverage`
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `PriceSeries.range: PriceRange!` | echoed from the argument | n/a | Echoed, so a client can tell what it got. |
+| `PriceSeries.granularity: Granularity!` | **server's choice** | n/a | Non-null, and **it is what the server actually returned**, not what was asked. The client must render what this says rather than what it requested. |
+| `PriceSeries.unit: String!` | NADAC `pricing_unit` | ⛔ **blocked on ADR-009** | Non-null and **constant across the series** — a series mixing `EA` and `ML` is not comparable and must not be assembled. |
+| `PriceSeries.points: [PricePoint!]!` | NADAC | ⛔ **blocked on ADR-009** | Non-null list; **empty is the common case.** |
+| `PricePoint.perUnit: String` | NADAC, rolled up | ⛔ **blocked on ADR-009** | **Nullable by design — null means nothing was published in this period**, which is distinct from a period that is absent from the list. A chart must render the gap, not interpolate across it. |
+| `PricePoint.observations: Int!` | count of raw rows rolled up | ⛔ **blocked on ADR-009** | Non-null; `0` is valid and pairs with a null `perUnit`. **Requires deduplication first** — NADAC returns the same `(ndc, effective_date, nadac_per_unit)` tuple more than once (§3.4), so a naive count inflates it. |
+| `Coverage.pricedPackages: Int!` | count | ⛔ **blocked on ADR-009** | Non-null. |
+| `Coverage.totalPackages: Int!` | RxNorm NDC count | as `drug` | Non-null. **Available even when pricing is entirely unavailable**, which is the point: it is what lets the UI say "no published price for 12 of 14 packages" instead of rendering an empty axis. |
+
+`Coverage` is the disclaimer's evidentiary basis. Of 401 NDCs for one metformin
+concept, 34 are priced — and all 34 carry identical prices on identical dates,
+because NADAC prices a product rather than a package (§3.3). The honest statement
+is not only "this is pharmacy acquisition cost, not what you pay" but also "most
+packages of this drug have no published price at all," and that sentence has to
+be derivable from a response or the UI is inventing it.
+
+## `Label`
+
+| Field | Source | Freshness | Failure mode |
+| --- | --- | --- | --- |
+| `openFDALabel: String` | openFDA | as `Drug.label` | Nullable. **Which of 78 SPLs this is, is Q2, open.** `openfda.rxcui:"860975"` reports `meta.results.total: 78` — one per manufacturer, repackager, and revision. `results[0]` is an arbitrary manufacturer's copy. Whatever is chosen, `Label` needs a field *naming* it, or the UI claims "the label" without grounds. |
+
+**Cost note.** One label is **118 KB**, and openFDA supports no field projection —
+you download 118 KB to render a paragraph (§2.3). Trimming is the BFF's job.
+
+## Degradation
+
+The W2 definition of done requires that killing one upstream in MSW leaves the
+app rendering, with the user told why.
+
+| Upstream down | Result |
+| --- | --- |
+| **RxNorm** | **Fatal.** It supplies identity; there is no page without it. `drug` → `null`, `search` → `[]` plus an error. |
+| **openFDA** | **Partial.** `label` → `null`, everything else renders. The page keeps pricing and packages. |
+| **NADAC** | **Partial.** Prices → `null`, `Coverage` still resolves from RxNorm's NDC count, and the UI states that no price is published — which is *already the correct copy for ~92% of drugs.* The degraded state and the common state are the same state. |
+
+That last row is the useful property: the NADAC-down path is exercised by
+ordinary traffic, not only by a fault injection.
+
+> **Caveat, and it is Q3.** "openFDA 404 → partial" cannot currently be
+> implemented safely, because a malformed query is byte-identical to a
+> label-less drug (§2.1). Until Q3 is decided, this table is a *goal*.
+
+## Batching
+
+| Join | Batching |
+| --- | --- |
+| RxNorm concept → NDCs | One request per concept; 401 NDCs come back in one response. Collapse to price series before doing anything per-NDC. |
+| NDCs → NADAC | **Batching is nearly free** — a 401-value `IN` costs the same 2.7 s as a single-value filter. GET is length-limited (a 19 KB URL is a 400); **POST is not** (§3.5). Whether this happens on the request path at all is ADR-009. |
+| RxCUIs → openFDA | **Do not batch by `OR`.** It returns results ranked globally rather than grouped by key, so a DataLoader can get **zero rows for one key while the API reports success** (§2.4). Per-key requests are the only ones that guarantee coverage. **Q4, open.** |
+
+## Open questions this document is waiting on
+
+| Q | Question | Blocks |
+| --- | --- | --- |
+| **Q5** | Does NADAC belong on the request path? | Every ⛔ row above. [ADR-009](adr/009-nadac-on-the-request-path.md), proposed. |
+| Q2 | Which of 78 SPLs is `Label`? | `Label.openFDALabel` |
+| Q3 | Is an openFDA 404 partial or fatal? | The whole degradation table |
+| Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
+| Q7 | Which TTYs are a generic alternative? | `alternatives`, `isGeneric` |
+| Q8 | Does search tolerate typos? | `search` |
+
+Q1 (freshness vs. identity) is **answered** by ADR-009's measurements and folded
+in above: the NADAC distribution UUID rotates on *republish*, not per calendar
+year — the ID captured 2026-08-23 was dead three days later (HTTP 400). Any TTL
+on that lookup is measured in hours. See `docs/upstream-notes.md` §3.1.
