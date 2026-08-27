@@ -14,9 +14,12 @@ import { datasetQueryUrl, type FetchJson, type ResolvedDataset } from "./distrib
  * actually decided the ADR — it makes a **miss cost what a hit costs**, which
  * matters because ~92% of packages have no published price at all.
  *
- * The job never issues a filter. Filtering is what costs 2.7 s; unfiltered
- * sequential paging runs 0.68–1.85 s per 5,000 rows, so the whole dataset is
- * ~206 requests and 2–4 minutes.
+ * The job never issues a filter. Filtering is what costs 2.7 s per call, while
+ * unfiltered paging is 0.68–1.85 s per 5,000 rows *in isolation*. Sustained,
+ * it averages 5.6 s per page: the whole dataset is ~205 requests and **~19
+ * minutes**, measured. ADR-009 originally estimated 2–4 minutes by
+ * extrapolating from single requests, which is the floor for sustained paging
+ * rather than a sample of it.
  */
 
 /** One package's current price. `null` price means published-as-absent. */

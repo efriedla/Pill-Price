@@ -4,9 +4,9 @@
  * Usage: npm run snapshot:nadac
  *
  * Pages the whole NADAC dataset, reduces it to the current price per NDC, and
- * writes it where resolvers can read it locally. Takes 2–4 minutes: ~206
- * unfiltered requests. It issues no filtered query, because filtering is what
- * costs 2.7 s per call.
+ * writes it where resolvers can read it locally. **Takes ~19 minutes**: ~205
+ * unfiltered requests, measured at 1,149 s for 1,028,250 rows. It issues no
+ * filtered query, because filtering is what costs 2.7 s per call.
  *
  * Exits non-zero on anything that would produce a partial or misattributed
  * snapshot. A stale snapshot is recoverable; a wrong one is not.
