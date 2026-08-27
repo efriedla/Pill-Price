@@ -51,3 +51,7 @@ storybook-static
 # stage every one of them. Scoped to `worktrees/` rather than all of `.claude/`
 # so shared agent config stays committable.
 .claude/worktrees/
+
+# NADAC snapshot output. The weekly job (ADR-009) writes ~4 MB of price data
+# here, superseded every week — a build artifact, not a source of truth.
+.data/

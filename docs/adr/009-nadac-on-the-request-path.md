@@ -78,17 +78,36 @@ An incremental sync is therefore ~6% of the table per month, not a full re-pull.
 **4. The 2.7 s floor is a *filter* cost, not a table cost.** Unfiltered paging is
 fast, and `limit` goes to at least **5000** (§3.4 recorded 500 as the page size;
 it is not the cap): 5000 rows in 0.68 s at offset 0, 0.99 s at offset 100,000,
-1.85 s at offset 1,000,000. Deep offsets work. A **full sequential sync is ~206
-requests at roughly 0.7–1.9 s each — on the order of 2–4 minutes**, single-
-threaded, no filter ever issued. Filtered queries remain slow on the new
-distribution (2.16 s for the `>=` scan; 1.55 s for an exact `ndc`), which
-confirms the scan diagnosis rather than contradicting it.
+1.85 s at offset 1,000,000. Deep offsets work. A **full sequential sync is ~205
+requests**, single-threaded, with no filter ever issued. Filtered queries remain
+slow on the new distribution (2.16 s for the `>=` scan; 1.55 s for an exact
+`ndc`), which confirms the scan diagnosis rather than contradicting it.
+
+> **Corrected 2026-08-27, by running it.** This section originally estimated the
+> full sync at **2–4 minutes**, extrapolated from those three individual page
+> timings. The real figure is **~19 minutes** (1,149 s for 1,028,250 rows in 205
+> pages, averaging **5.6 s per page**) — three to eight times slower than the
+> spot checks predicted.
+>
+> The lesson is about the measurement, not the API: a single page request does
+> not compete with itself, so isolated timings are the *floor* for sustained
+> paging rather than a sample of it. Any future estimate extrapolated from a
+> handful of curl calls should be treated the same way.
+>
+> **The decision is unaffected, and if anything better supported.** Nineteen
+> minutes once a week, off the request path, costs nothing a user can perceive.
+> The correction cuts *against* Option B, whose per-cold-key latency scales with
+> the same underlying slowness. Measured by the snapshot job in
+> `src/server/nadac/`, which reported `complete: true` with 1,028,250 of
+> 1,028,250 rows fetched.
 
 **5. The useful subset is small.** Rows are 375 B each as returned, **99 B**
 carrying only `(ndc, nadac_per_unit, effective_date, pricing_unit)`. Full history
 is therefore ~102 MB slim / ~385 MB raw. But every NDC checked carries exactly
 **34 rows** — one per weekly effective date — so the table is ~**30,200 distinct
-NDCs**, and a *latest-price-per-NDC* table is **~3 MB**. A price-history chart
+NDCs**, and a *latest-price-per-NDC* table is **~3 MB**. (The real run gives
+**32,509** priced NDCs at 31.6 rows each, and **3.9 MB** on disk — the estimate
+was close, and the conclusion it supports is unchanged.) A price-history chart
 needs the full 102 MB; a price *lookup* needs 3 MB.
 
 **Incidental, and useful elsewhere:** the query response carries the upstream
@@ -136,7 +155,7 @@ instead of weekly.
 
 **What this does to the options.** A and B are weakened: B's per-RxCUI cache pays
 the 1.5–2.7 s filter cost on every cold key, to populate a table that could have
-been pulled whole in 2–4 minutes. C is cheaper than it looked — bounded sync
+been pulled whole in one weekly pass. C is cheaper than it looked — bounded sync
 time, a 3 MB working set, and an incremental path via `>=`. Finding 1 appeared to
 move its risk to "the ID under it can die any week"; finding 6 withdraws that.
 The identifier is stable at the dataset level, and UUID resolution is a
