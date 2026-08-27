@@ -22,7 +22,7 @@ what the resolvers must do, not a report of what they do.
 | --- | --- | --- | --- | --- |
 | **RxNorm** | `rxnav.nlm.nih.gov/REST` | none | 110–250 ms warm, ~1.2 s cold | courtesy 20 req/s |
 | **openFDA** | `api.fda.gov/drug/label.json` | none (key optional) | — | 240 req/min, 1,000 req/day anonymous |
-| **NADAC** | `data.medicaid.gov/api/1/datastore` | none | 1.5–2.7 s **filtered**, 0.7–1.9 s per 5,000 rows unfiltered | none published |
+| **NADAC** | `data.medicaid.gov/api/1/datastore` | none | 1.5–2.7 s **filtered**; unfiltered paging is 0.7–1.9 s per 5,000 rows in isolation but **5.6 s sustained** | none published |
 
 **NADAC is never called during a request** (ADR-009). It is listed here because
 the weekly snapshot job calls it, and the job is subject to the same validation
@@ -142,7 +142,7 @@ ordinary traffic, not only by a fault injection.
 | Join | Batching |
 | --- | --- |
 | RxNorm concept → NDCs | One request per concept; 401 NDCs come back in one response. Collapse to price series before doing anything per-NDC. |
-| NDCs → NADAC | **Not batched, because not requested.** ADR-009 puts NADAC behind a weekly snapshot, so the request path never fans out to it at all. The job pages the dataset sequentially — ~206 requests of 5,000 rows, no filter ever issued, on the order of 2–4 minutes. The `IN`-batching and GET-length findings (§3.5) apply only to the request-path options that were not chosen. |
+| NDCs → NADAC | **Not batched, because not requested.** ADR-009 puts NADAC behind a weekly snapshot, so the request path never fans out to it at all. The job pages the dataset sequentially — ~205 requests of 5,000 rows, no filter ever issued, **~19 minutes measured end to end** (1,149 s for 1,028,250 rows; ADR-009 finding 4 originally estimated 2–4 minutes from individual page timings and was corrected by running it). The `IN`-batching and GET-length findings (§3.5) apply only to the request-path options that were not chosen. |
 | RxCUIs → openFDA | **Do not batch by `OR`.** It returns results ranked globally rather than grouped by key, so a DataLoader can get **zero rows for one key while the API reports success** (§2.4). Per-key requests are the only ones that guarantee coverage. **Q4, open.** |
 
 ## Open questions this document is waiting on
