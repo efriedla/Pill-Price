@@ -134,6 +134,18 @@ Any decision that makes 404 mean `absent` therefore needs a second guard beyond
 field names: an assertion about the **TTY of the RxCUI being queried**, which is
 ours to know before the request goes out.
 
+**A follow-up probe narrows what that guard can promise.** Product-level TTYs are
+*necessary but not sufficient*: SBD 213269 returns 2 labels while SBD 860977
+404s, and SCD 1000126 returns labels while SCD 833036 404s. Non-product TTYs, by
+contrast, appear to 404 unconditionally — IN 6809 and DF 316945 both do, as did
+all eight ingredients above.
+
+So the TTY check cannot *predict* whether a label exists, and it is not meant to.
+Its job is elimination: rule out the one cause that is always our bug, so that a
+404 on a correctly-levelled RxCUI has only one remaining meaning. Combined with a
+field-name check, that is what licenses reading 404 as `absent` — the guards do
+not detect absence, they exhaust the alternatives.
+
 **5. No rate-limit headers are exposed.** Anonymous responses carry no
 `X-RateLimit-*`, so budget against the 240/min and 1,000/day caps has to be
 tracked client-side. This is what makes a *per-404* canary (Option C) expensive
@@ -227,17 +239,53 @@ already been ruled out.
 
 ## Decision
 
-<!-- One sentence, active voice. This section also has to answer, because the
+<!-- DRAFT, agent-written 2026-09-02, awaiting the author. Only the TTY
+     precondition below is drafted, because measurement 4 largely forces it;
+     every other bullet in the checklist is still open, and Status stays
+     `proposed`. Rewrite this in your own words or delete it — it is here so the
+     resolvers have something concrete to argue with, not to pre-empt the call. -->
+
+**An RxCUI is asserted to be product-level before it is sent to openFDA.** The
+openFDA client accepts only product-level TTYs; anything else is rejected at the
+call site without a request being made. A rejection is a **programming error**,
+not a runtime condition — it throws, and it is covered by a test — because there
+is no user-facing situation in which the correct response to "we asked the wrong
+question" is to show the user an empty label section.
+
+The assertion lives in the **openFDA client**, not the resolver: it is a fact
+about what that upstream can answer for, it must hold for every call site
+including future ones, and it is the same boundary that already separates parse
+failure from network failure.
+
+This does not predict whether a label exists, and is not intended to.
+Product-level TTYs 404 legitimately (measurement 4's follow-up: SBD 860977 and
+SCD 833036 both do). The guard's job is **elimination** — with the field names
+validated at build time (Option E) and the level asserted at the call site, a
+404 has one remaining meaning, and `absent` becomes a conclusion rather than an
+assumption.
+
+**Ingredient-to-product resolution is out of scope for this ADR.** Holding an
+ingredient RxCUI and wanting a label is a *lookup* question — which products, and
+which of their labels — that belongs with Q2 and Q7. This ADR says only that the
+ingredient RxCUI must not be sent to openFDA as though it were a product.
+
+<!-- Still to decide — one sentence, active voice. This section also has to answer, because the
      resolvers cannot be written without them:
        - openFDA 404: absent, malformed, decided by canary (C), or absent
          *because* a build-time field check ruled out the alternative (E)?
-       - **the TTY precondition (measurement 4): what is asserted about an
-         RxCUI before it is sent to openFDA, and what happens when the
-         assertion fails?** Sub-questions the resolvers need answered:
+       - **the TTY precondition (measurement 4) — DRAFTED ABOVE, needs your
+         sign-off or rewrite.** What is asserted about an RxCUI before it is
+         sent to openFDA, and what happens when the assertion fails?
+         Sub-questions, with the draft's answers noted:
            * which TTYs are valid to send — SCD/SBD only, or the full product
              set including GPCK/BPCK? This overlaps Q7 but is not the same
              question: Q7 asks what a user should be *shown* as an
              alternative, this asks what openFDA will *answer for*.
+             **STILL OPEN — the draft says "product-level" without enumerating
+             it.** SCD and SBD are confirmed to answer; IN and DF are confirmed
+             not to; GPCK and BPCK are untested, because the metformin concept
+             used for every other probe has neither. Enumerate before
+             implementing: the assertion needs a list, not an adjective.
            * is a wrong-TTY call a programming error (assert/throw, caught in
              tests) or a runtime condition (classify `malformed`, log, render
              the label section as unavailable rather than absent)?
