@@ -8,19 +8,28 @@ import "server-only";
  *
  * - The **distribution** identifier rotates *weekly, by design*. NADAC
  *   republishes the whole CSV under a new filename, DKAN registers a new source
- *   version, and the distribution ID is derived from `file + version`. Pinning
- *   one would break within a week.
- * - The **dataset** identifier is per calendar year. Querying
- *   `datastore/query/{datasetId}/{index}` makes CMS resolve the distribution
- *   server-side, so the weekly rotation stops being our problem entirely.
+ *   version, and the distribution ID is derived from `file + version` — it is a
+ *   **UUIDv5**, so a republish *must* mint a new one. Pinning one would break
+ *   within a week, and observed rotations bear that out: `b391aa55…` (08-23),
+ *   `16fd6484…` (08-27), `eb5b20dc…` (09-02), each predecessor now HTTP 400.
+ * - The **dataset** identifier is per calendar year, and is a **UUIDv4** —
+ *   random, assigned once, with nothing to re-derive it from on republish.
+ *   Querying `datastore/query/{datasetId}/{index}` makes CMS resolve the
+ *   distribution server-side, so the weekly rotation stops being our problem.
  *
- * The honest caveat, carried from ADR-009 finding 6: dataset-ID stability is
- * **inferred, not proven** — no historical dataset ID was ever captured to
- * compare against. The fallback below is what makes that assumption safe to
- * hold: if it is wrong, the job alerts rather than serving bad data.
+ * ADR-009 finding 6 originally flagged dataset-ID stability as *inferred, not
+ * proven*. It is now measured (correction of 2026-09-02): the metastore lists
+ * one NADAC dataset per year for 2013–2026, every identifier unchanged — the
+ * 2013–2021 datasets still carry the IDs they had when last modified in 2021 —
+ * across three distribution rotations in ten days.
+ *
+ * The fallback below is still what handles the case this pinning cannot cover:
+ * the **annual rollover**, when the next year's dataset is minted with a new v4
+ * ID. On a 400/404 the job re-resolves by title, pins, and alerts, so a wrong
+ * assumption surfaces as an alert rather than as bad data.
  */
 
-/** 2026. Verified live 2026-08-26: 1,028,250 rows. */
+/** 2026. Verified live 2026-08-26 (1,028,250 rows) and again 2026-09-02. */
 export const NADAC_DATASET_ID = "fbb83258-11c7-47f5-8b18-5f8e79f7e704";
 
 /** The year `NADAC_DATASET_ID` refers to, so a rollover is detectable. */
