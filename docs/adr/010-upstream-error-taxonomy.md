@@ -104,7 +104,37 @@ constants, this can run **once in CI or at boot** — not once per 404. The cana
 idea was right that a second request is the only available evidence; it was wrong
 about when to spend it.
 
-**4. No rate-limit headers are exposed.** Anonymous responses carry no
+**4. There is a *third* cause of a silent 404, and it is the likeliest real
+bug: querying at the wrong RxCUI level.** `openfda.rxcui` holds **product-level**
+RxCUIs. Ingredient-level ones 404 exactly like an absent label:
+
+| RxCUI | TTY | openFDA | Labels |
+| --- | --- | --- | --- |
+| 860975 (metformin ER 500 MG) | SCD | 200 | 79 |
+| 617310 | SCD | 200 | 106 |
+| 1049221 | SCD | 200 | 39 |
+| 29046 (lisinopril) | **IN** | **404** | — |
+
+Eight of eight ingredient-level RxCUIs — metformin, lisinopril, atorvastatin,
+gabapentin, levothyroxine, amlodipine, sertraline, montelukast — returned 404.
+Not one is a drug without labels; every one of them has scores of labels under
+its *product* RxCUIs. The 404 means "you asked the wrong question," and it is
+byte-identical to "this drug has no label."
+
+This matters more than it first looks, for three reasons. It is a **live risk
+today**, because §1.4 already establishes that one concept fans out across 19
+TTYs and picking which ones count is an open decision (Q7) — so passing the
+wrong level is a plausible bug, not a hypothetical one. It is **invisible to
+Option E**, because `openfda.rxcui` is a perfectly valid field name; the
+build-time check passes while every lookup silently returns nothing. And it
+would present as *the product working correctly* — a drug page rendering with no
+label section, which is exactly what a label-less drug looks like.
+
+Any decision that makes 404 mean `absent` therefore needs a second guard beyond
+field names: an assertion about the **TTY of the RxCUI being queried**, which is
+ours to know before the request goes out.
+
+**5. No rate-limit headers are exposed.** Anonymous responses carry no
 `X-RateLimit-*`, so budget against the 240/min and 1,000/day caps has to be
 tracked client-side. This is what makes a *per-404* canary (Option C) expensive
 and a *per-deploy* field check (below) nearly free.
@@ -179,12 +209,15 @@ already been ruled out.
 - **For:** Resolves Q3 with the same evidence Option C uses, at a fraction of the
   cost — a handful of requests per deploy instead of one per 404, which matters
   because a broken field name 404s *every* lookup, exactly when the 1,000/day
-  budget is tightest (measurement 4). Catches the failure earlier than
+  budget is tightest (measurement 5). Catches the failure earlier than
   production: an upstream field rename breaks CI rather than silently emptying a
   page. Needs no caching, no canary TTL, no new request-time state.
-- **Against:** Only covers field names known at build time — a dynamically
-  constructed field would slip through (we have none, and this makes that a
-  constraint worth keeping). Does not detect a rename landing *between* deploys,
+- **Against:** Covers only *field names*, and measurement 4 shows the likeliest
+  real bug is not a field name but a wrong-level RxCUI — a valid field, a valid
+  query, an empty answer. E has to be paired with a TTY precondition on the call
+  site or it resolves the wrong half of the problem. Beyond that it covers only
+  fields known at build time — a dynamically constructed field would slip through
+  (we have none, and this makes that a constraint worth keeping). Does not detect a rename landing *between* deploys,
   so a long gap between deploys is a gap in coverage; a scheduled run of the same
   check closes it, at the cost of leaning on the scheduled job ADR-009 already
   introduced. Leaves the request path unable to distinguish anything on its own,
