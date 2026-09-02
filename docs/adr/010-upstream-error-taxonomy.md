@@ -134,6 +134,30 @@ Any decision that makes 404 mean `absent` therefore needs a second guard beyond
 field names: an assertion about the **TTY of the RxCUI being queried**, which is
 ours to know before the request goes out.
 
+**The set is now enumerated (2026-09-02).** Twenty pack concepts sampled at
+random from RxNorm's 656 GPCK and 742 BPCK, plus one concept from each remaining
+term type:
+
+| TTY | openFDA answers? | Evidence |
+| --- | --- | --- |
+| **SCD** | **yes** | 5 of 5 sampled returned labels (10–106 each) |
+| **SBD** | **yes** | 213269 → 2 labels |
+| **GPCK** | **yes** | 8 of 10 sampled returned labels |
+| **BPCK** | **yes** | 7 of 10 sampled returned labels |
+| IN, MIN, PIN, BN | no | 404 |
+| DF, DFG | no | 404 |
+| SCDG, SBDG, SCDF, SBDF, SCDC | no | 404 |
+
+**The allowed set is `{SCD, SBD, GPCK, BPCK}`** — the dispensable product
+concepts, which is exactly what an SPL is written about. Everything else is an
+abstraction over products (an ingredient, a dose form, a grouper) and has no
+label of its own to find.
+
+Two caveats on the evidence. The "no" rows are **one concept each**, so they are
+consistent with the structural story rather than proof of it; the "yes" rows are
+sampled and are proof. And the packs' 404s (2 of 10 GPCK, 3 of 10 BPCK) are
+ordinary absences, not level errors — same as the SCD and SBD 404s below.
+
 **A follow-up probe narrows what that guard can promise.** Product-level TTYs are
 *necessary but not sufficient*: SBD 213269 returns 2 labels while SBD 860977
 404s, and SCD 1000126 returns labels while SCD 833036 404s. Non-product TTYs, by
@@ -246,8 +270,10 @@ already been ruled out.
      resolvers have something concrete to argue with, not to pre-empt the call. -->
 
 **An RxCUI is asserted to be product-level before it is sent to openFDA.** The
-openFDA client accepts only product-level TTYs; anything else is rejected at the
-call site without a request being made. A rejection is a **programming error**,
+openFDA client accepts **`SCD`, `SBD`, `GPCK`, `BPCK`** and nothing else;
+anything else is rejected at the call site without a request being made. Those
+four are the dispensable product concepts — the things an SPL is actually written
+about — and they are the measured set, not a guess. A rejection is a **programming error**,
 not a runtime condition — it throws, and it is covered by a test — because there
 is no user-facing situation in which the correct response to "we asked the wrong
 question" is to show the user an empty label section.
@@ -281,11 +307,10 @@ ingredient RxCUI must not be sent to openFDA as though it were a product.
              set including GPCK/BPCK? This overlaps Q7 but is not the same
              question: Q7 asks what a user should be *shown* as an
              alternative, this asks what openFDA will *answer for*.
-             **STILL OPEN — the draft says "product-level" without enumerating
-             it.** SCD and SBD are confirmed to answer; IN and DF are confirmed
-             not to; GPCK and BPCK are untested, because the metformin concept
-             used for every other probe has neither. Enumerate before
-             implementing: the assertion needs a list, not an adjective.
+             **ANSWERED 2026-09-02: `{SCD, SBD, GPCK, BPCK}`.** GPCK and BPCK
+             both answer (8/10 and 7/10 of sampled packs). Every other term type
+             probed — IN, MIN, PIN, BN, DF, DFG, SCDG, SBDG, SCDF, SBDF, SCDC —
+             returns 404. Still yours to ratify, but it is a list now.
            * is a wrong-TTY call a programming error (assert/throw, caught in
              tests) or a runtime condition (classify `malformed`, log, render
              the label section as unavailable rather than absent)?
