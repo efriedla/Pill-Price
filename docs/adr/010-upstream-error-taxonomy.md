@@ -58,11 +58,56 @@ condition: the failure mode is a *stale snapshot*, which has its own signal
 (`Price.asOf`, a notice past 14 days). What remains genuinely request-time is
 RxNorm and openFDA.
 
-<!-- Not yet gathered, and it would sharpen the openFDA option:
-     - whether an openFDA malformed-field query can be distinguished by any
-       other signal at all (response headers, meta block, timing)
-     - whether a known-good canary query alongside each real one is affordable
-       against the 240 req/min and 1,000 req/day anonymous limits -->
+## Measurements (2026-09-02)
+
+Taken to answer the two questions this skeleton flagged as ungathered. The first
+came back **no**; the second came back **the question was wrong**.
+
+**1. The two 404s are byte-identical, and there is no side channel.** A valid
+field with no matches (`openfda.rxcui:"99999999"`) and a field that does not
+exist (`nonsense_field:"x"`) return the same status, the same
+`content-length: 80`, and the same body. No header distinguishes them — the only
+per-response headers are request IDs and `x-cache`, neither of which carries
+meaning here. §2.1's claim survives contact: **you cannot tell them apart from
+the response.**
+
+**2. But the ambiguity is narrower than §2.1 implies — it is a *field-name*
+problem, not a query-bug problem.** A syntactically broken query does not 404 at
+all:
+
+| Query defect | Status | Body |
+| --- | --- | --- |
+| Valid field, no matches | 404 | `NOT_FOUND` / "No matches found!" |
+| **Nonexistent field name** | 404 | `NOT_FOUND` / "No matches found!" — *identical* |
+| **Unbalanced quote / bad syntax** | **500** | `SERVER_ERROR` / `[token_mgr_error] Lexical error…` |
+
+So malformed *syntax* is already loud, and Option B's `malformed` kind catches it
+for free. The silent-failure class this ADR exists to prevent is exactly one
+thing: **a field name that is wrong or has been renamed upstream.** That is a
+much smaller target than "a BFF query bug," and it does not vary per request —
+the field names are constants in our source.
+
+**3. `count=` is a field-name validator, and it does not cost a request per
+lookup.** The `count` parameter rejects unknown fields with a *distinguishable*
+message:
+
+| `count=` | Status | Body |
+| --- | --- | --- |
+| `openfda.rxcui.exact` | 200 | 1 bucket |
+| `effective_time` | 200 | 6,207 buckets |
+| `nonsense_field` | 404 | `NOT_FOUND` / **"Nothing to count"** |
+| `openfda.nonsense` | 404 | `NOT_FOUND` / **"Nothing to count"** |
+
+`"Nothing to count"` is a different message from `"No matches found!"`, and it
+depends only on whether the field exists. Since our field names are compile-time
+constants, this can run **once in CI or at boot** — not once per 404. The canary
+idea was right that a second request is the only available evidence; it was wrong
+about when to spend it.
+
+**4. No rate-limit headers are exposed.** Anonymous responses carry no
+`X-RateLimit-*`, so budget against the 240/min and 1,000/day caps has to be
+tracked client-side. This is what makes a *per-404* canary (Option C) expensive
+and a *per-deploy* field check (below) nearly free.
 
 ## Options considered
 
@@ -123,13 +168,36 @@ Ship resolvers with openFDA 404 → partial and revisit when something breaks.
   default, and "revisit when something breaks" does not work when breakage is
   designed to look like success.
 
-<!-- Add an Option E if none of these is what you'd actually do. -->
+### Option E — Option B, with field-name validation moved off the request path
+
+As B — classify by failure kind — and resolve Q3 not at request time but at
+build/boot time: assert every openFDA field name we query against `count=<field>`
+in CI, and fail the build when one stops existing. At request time a 404 is then
+**unambiguously `absent`**, because the only other thing it could have meant has
+already been ruled out.
+
+- **For:** Resolves Q3 with the same evidence Option C uses, at a fraction of the
+  cost — a handful of requests per deploy instead of one per 404, which matters
+  because a broken field name 404s *every* lookup, exactly when the 1,000/day
+  budget is tightest (measurement 4). Catches the failure earlier than
+  production: an upstream field rename breaks CI rather than silently emptying a
+  page. Needs no caching, no canary TTL, no new request-time state.
+- **Against:** Only covers field names known at build time — a dynamically
+  constructed field would slip through (we have none, and this makes that a
+  constraint worth keeping). Does not detect a rename landing *between* deploys,
+  so a long gap between deploys is a gap in coverage; a scheduled run of the same
+  check closes it, at the cost of leaning on the scheduled job ADR-009 already
+  introduced. Leaves the request path unable to distinguish anything on its own,
+  which is only safe *because* the build-time check ran.
+
+<!-- Add an Option F if none of these is what you'd actually do. -->
 
 ## Decision
 
 <!-- One sentence, active voice. This section also has to answer, because the
      resolvers cannot be written without them:
-       - openFDA 404: absent, malformed, or decided by canary?
+       - openFDA 404: absent, malformed, decided by canary (C), or absent
+         *because* a build-time field check ruled out the alternative (E)?
        - is an RxNorm 200-with-{} a fatal error or a legitimate null `drug`?
        - what does a partial failure look like *in the response* — GraphQL
          errors array, a nullable field, or a typed field on the payload?
