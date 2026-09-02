@@ -153,6 +153,35 @@ plainly per-year rather than per-file. The dataset ID **does** still change at
 year rollover, so title resolution is retained as a fallback — firing annually
 instead of weekly.
 
+> **Promoted from inferred to measured, 2026-09-02.** The caveat above no longer
+> applies: the dataset ID's stability is now evidence, not reasoning.
+>
+> Pulling the full metastore index and listing every NADAC dataset gives **one
+> dataset per calendar year, 2013–2026**, each with an identifier that has not
+> moved — the 2013–2021 datasets were last modified in 2021 and still carry the
+> IDs they had then. The pinned 2026 ID `fbb83258-11c7-47f5-8b18-5f8e79f7e704`
+> is unchanged since it was captured on 08-26 and still answers
+> `datastore/query/{id}/0` with **HTTP 200 in 0.13 s**.
+>
+> Over the same ten days the distribution ID rotated a **third** time:
+> `b391aa55…` (08-23) → `16fd6484…` (08-27) → `eb5b20dc-e620-5984-8e57-8e92abc667f4`
+> (live 2026-09-02). The 08-27 ID this ADR recorded as live now returns **HTTP
+> 400**, exactly as its predecessor did. Three distribution IDs, zero dataset
+> IDs, one dataset ID pinned in config the whole time.
+>
+> **The UUID versions corroborate the mechanism.** Every distribution identifier
+> is a **UUIDv5** — deterministic, derived from a name, which is precisely the
+> `file + version` derivation this finding inferred from the `%Ref:downloadURL`
+> field. Every dataset identifier minted since 2022 is a **UUIDv4** — random,
+> assigned once at creation, with nothing to re-derive it from. The rotation is
+> not merely observed to be weekly; it is structurally *unable* to be otherwise,
+> and the dataset ID is structurally *unable* to rotate on republish.
+>
+> What remains true from the original caveat is the annual rollover: the 2027
+> dataset will have its own new v4 ID. Title resolution stays as the fallback,
+> and the decision below is unchanged — it is now resting on measurement rather
+> than on a plausible story.
+
 **What this does to the options.** A and B are weakened: B's per-RxCUI cache pays
 the 1.5–2.7 s filter cost on every cold key, to populate a table that could have
 been pulled whole in one weekly pass. C is cheaper than it looked — bounded sync
@@ -289,10 +318,11 @@ January. `docs/api-contract.md`'s ⛔ rows can now be written.
 
 ## Revisit if
 
-- **The dataset identifier turns out to rotate too.** It is inferred stable, not
-  proven (finding 6). The annual-rollover fallback fires and alerts, so this
-  surfaces as an alert rather than as bad data — but if it fires more than once a
-  year, the pinning strategy is wrong.
+- **The dataset identifier turns out to rotate too.** Measured stable over ten
+  days and fourteen yearly datasets, against three distribution rotations in the
+  same window (finding 6, as corrected). The annual-rollover fallback fires and
+  alerts, so this surfaces as an alert rather than as bad data — but if it fires
+  more than once a year, the pinning strategy is wrong.
 - **NADAC's query API gains a real index, or a genuine "changed since" beyond the
   `>=` scan**, and the 2.7 s floor stops being a floor. That is the signal a
   request-path option becomes viable again.
