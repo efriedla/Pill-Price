@@ -167,6 +167,25 @@ NADAC is published as **one dataset per calendar year**, each with its own UUID:
 > entirely. The 2026 dataset now holds **1,028,250** rows, up from the 998,332
 > quoted at the end of this section.
 
+> **Second correction, 2026-09-02 — the whole section is superseded.** The
+> heading is wrong: the *distribution* ID changes on **republish, weekly**, and
+> `16fd6484-…` above is now dead too. Three IDs in ten days:
+> `b391aa55…` (08-23) → `16fd6484…` (08-27) → `eb5b20dc-e620-5984-8e57-8e92abc667f4`
+> (09-02), each predecessor returning HTTP 400.
+>
+> The mechanism: NADAC republishes the full CSV weekly under a new filename, and
+> DKAN derives the distribution identifier from `file + version` as a **UUIDv5**.
+> A new ID every week is by design, not breakage.
+>
+> **Use the dataset ID, not the distribution ID.** Each yearly dataset carries
+> its own identifier — 2026 is `fbb83258-11c7-47f5-8b18-5f8e79f7e704` — and
+> `datastore/query/{datasetId}/{index}` resolves the distribution server-side.
+> That URL does not rotate. Dataset IDs are **UUIDv4**, minted once, and are
+> measured stable: all fourteen yearly datasets (2013–2026) still carry the IDs
+> they were created with. This removes the metastore fetch, the 1.16 MB index,
+> and the title-matching contract below from the normal path entirely — they
+> survive only as the **annual** rollover fallback. See ADR-009 finding 6.
+
 Hard-coding the 2026 UUID means the app silently serves stale prices from
 2027-01-01. Resolving it requires the metastore index at
 `/api/1/metastore/schemas/dataset/items`, which is **1.1 MB** and returns all 549
@@ -194,6 +213,13 @@ The 2026 dataset holds **998,332 rows**.
 A miss costs the same as a hit. Latency is essentially independent of result size,
 which reads as an unindexed scan over the million rows. A timeout budget tuned to
 "fast source" will fail 100% of NADAC calls.
+
+> **Refined 2026-08-26 (ADR-009 finding 4).** The 2.7 s floor is a *filter* cost,
+> not a table cost. **Unfiltered** paging is fast — 5,000 rows in 0.68 s at
+> offset 0, 1.85 s at offset 1,000,000 — so a full sequential read is ~205
+> requests with no filter ever issued, while any filtered query stays slow. That
+> asymmetry is what makes a bulk snapshot cheap and a per-drug lookup expensive,
+> and it is the measurement ADR-009 turns on.
 
 ### 3.3 Coverage is the real finding: 34 of 401
 
@@ -261,9 +287,12 @@ Recorded, not answered — these are the focused-hours decisions.
 4. **Does batching openFDA by `OR` ever ship**, given §2.4's silent per-key
    misses? Per-key requests are correct and cost 240 req/min against a 1,000/day
    anonymous cap.
-5. **Does NADAC belong on the request path at all**, given 2.7 s floor and 8%
+5. ~~**Does NADAC belong on the request path at all**, given 2.7 s floor and 8%
    coverage? If not, what produces the cached view, and what does the UI show for
-   the 92%?
+   the 92%?~~ **Answered by ADR-009 (accepted 2026-08-26): no.** A weekly job
+   snapshots the dataset into local storage and resolvers read only that
+   snapshot. Q1 above is answered with it — the resolution lives in the job, and
+   the dataset ID is pinned in config rather than resolved per request.
 6. **Where do prices become numbers** — at the Zod boundary, in the resolver, or
    in the formatter — and in what representation, given they arrive as strings?
 7. **What counts as a generic alternative** across 19 RxNorm term types? This is a
@@ -283,3 +312,54 @@ Fixtures are trimmed to a small number of `results` where the raw response ran t
 hundreds of KB; sizes quoted above are of the untrimmed responses. Latencies are
 single cold samples, not distributions — they establish orders of magnitude, and
 W6 replaces them with real measurement.
+
+> **A single sample is a floor, not an average.** ADR-009 estimated a full NADAC
+> sync at 2–4 minutes by extrapolating from three individual page timings, then
+> measured **~19 minutes** by running it — 5.6 s per page sustained, against
+> 0.68–1.85 s for the same pages requested in isolation. A lone request does not
+> compete with itself. Treat every latency in this document as the best case.
+
+### 6.1 NADAC commands (ADR-009)
+
+Folded in from `docs/adr/009-nadac-on-the-request-path.md`, which is where these
+were first run. `$DATASET` is the pinned per-year dataset ID from §3.1.
+
+```sh
+DATASET=fbb83258-11c7-47f5-8b18-5f8e79f7e704
+BASE=https://data.medicaid.gov/api/1
+
+# Resolve the dataset ID by title. Only needed at year rollover (§3.1).
+# NOTE: show-reference-ids is required — without it, distribution[].identifier
+# is omitted entirely.
+curl -s "$BASE/metastore/schemas/dataset/items?show-reference-ids=true" \
+  | jq -r '.[] | select(.title | startswith("NADAC (National Average Drug Acquisition Cost) "))
+           | [.title, .identifier, .modified, .distribution[0].identifier] | @tsv'
+
+# Query by dataset ID + distribution index. This URL does not rotate weekly.
+curl -s "$BASE/datastore/query/$DATASET/0?limit=1" | jq '.count'
+
+# Page size: 5000 works. §3.4's 500 was the default, not the cap.
+curl -s "$BASE/datastore/query/$DATASET/0?limit=5000&offset=1000000" | jq '.results | length'
+
+# Incremental: a real ">=" filter exists on effective_date and as_of_date.
+curl -s -G "$BASE/datastore/query/$DATASET/0" \
+  --data-urlencode 'conditions[0][property]=effective_date' \
+  --data-urlencode 'conditions[0][operator]=>=' \
+  --data-urlencode 'conditions[0][value]=2026-08-01' \
+  --data-urlencode 'limit=1' | jq '.count'
+
+# The upstream column types. nadac_per_unit is decimal(10,5), assembled from
+# precision/scale/mysql_type — evidence for ADR-004's String money decision.
+curl -s "$BASE/datastore/query/$DATASET/0?limit=1" \
+  | jq '.schema | to_entries[0].value.fields.nadac_per_unit'
+# → {"type":"numeric","precision":"10","scale":"5","mysql_type":"decimal", …}
+```
+
+**Every command above was re-run on 2026-09-02 and works as written.** Two
+figures move: `.count` was 1,028,250 on 08-26 and is **1,058,251** today, and the
+`>=` filter returned 58,621 rows then and **87,665** now. The table grows by
+roughly 30,000 rows per weekly republish, so treat any row count in this document
+as a timestamp rather than a constant.
+
+The snapshot job in `src/server/nadac/` is the maintained version of all of the
+above; these are for checking upstream by hand when it misbehaves.
