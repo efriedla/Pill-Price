@@ -166,6 +166,10 @@ resolves the distribution server-side. So there is no short TTL to manage: the
 dataset ID is pinned, and a 400/404 at year rollover triggers re-resolution by
 exact title. See ADR-009 finding 6.
 
-One caveat carried from the ADR: dataset-ID stability is **inferred, not
-proven**. It surfaces as an alert rather than as bad data, but it is the
-assumption most worth watching.
+That stability was *inferred* when this was written; it is **measured** as of
+2026-09-02. All fourteen yearly NADAC datasets (2013–2026) still carry their
+original identifiers, across three distribution rotations in ten days, and the
+UUID versions give the mechanism: distribution IDs are v5, derived from
+`file + version`, so a republish must mint a new one; dataset IDs are v4, minted
+once. What remains is the **annual** rollover, which is what the title-resolution
+fallback is for.
