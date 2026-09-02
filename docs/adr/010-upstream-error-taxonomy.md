@@ -231,6 +231,22 @@ already been ruled out.
      resolvers cannot be written without them:
        - openFDA 404: absent, malformed, decided by canary (C), or absent
          *because* a build-time field check ruled out the alternative (E)?
+       - **the TTY precondition (measurement 4): what is asserted about an
+         RxCUI before it is sent to openFDA, and what happens when the
+         assertion fails?** Sub-questions the resolvers need answered:
+           * which TTYs are valid to send — SCD/SBD only, or the full product
+             set including GPCK/BPCK? This overlaps Q7 but is not the same
+             question: Q7 asks what a user should be *shown* as an
+             alternative, this asks what openFDA will *answer for*.
+           * is a wrong-TTY call a programming error (assert/throw, caught in
+             tests) or a runtime condition (classify `malformed`, log, render
+             the label section as unavailable rather than absent)?
+           * where does the assertion live — the resolver, the openFDA client,
+             or the Zod boundary that already separates parse from network
+             failure?
+           * when we hold an ingredient-level RxCUI and want a label, is
+             resolving it down to product RxCUIs part of this taxonomy or a
+             separate lookup decision?
        - is an RxNorm 200-with-{} a fatal error or a legitimate null `drug`?
        - what does a partial failure look like *in the response* — GraphQL
          errors array, a nullable field, or a typed field on the payload?
