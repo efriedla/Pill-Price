@@ -109,6 +109,19 @@ export const typeDefs = /* GraphQL */ `
 
   union LabelResult = Label | Absent | Unavailable
 
+  # Enrichment is always partial (ADR-010): the page renders with name, price
+  # and label whether or not this call answered. A bare list cannot say which
+  # happened — an empty array reads as "no alternatives exist" whether RxNorm
+  # said so or was never reached, and those are different sentences to a reader.
+  #
+  # Absent here means RxNorm answered and found none, so this list is never
+  # empty: an empty result is Absent, not Alternatives with no drugs.
+  type Alternatives {
+    drugs: [Drug!]!
+  }
+
+  union AlternativesResult = Alternatives | Absent | Unavailable
+
   type Drug {
     rxcui: ID!
     name: String!
@@ -117,7 +130,7 @@ export const typeDefs = /* GraphQL */ `
     packages: [Package!]!
     price: Price
     priceHistory(range: PriceRange! = YEAR): PriceSeries!
-    alternatives(kind: AlternativeKind): [Drug!]! # DECIDE: which TTYs — Q7
+    alternatives(kind: AlternativeKind): AlternativesResult! # DECIDE: which TTYs — Q7
     label: LabelResult!
   }
 
@@ -127,18 +140,26 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+/**
+ * Unions cannot be executed without a type discriminator, and ADR-010's two
+ * degraded members are shared across every degradable field — so the rule that
+ * recognises them is written once. Resolving on the presence of a
+ * member-specific field rather than on a stored `__typename` keeps resolvers
+ * free to return plain objects.
+ *
+ * `retryable` is checked before `reason` because `Unavailable` carries both.
+ */
+const resolveDegradable =
+  (present: string) => (value: Record<string, unknown>) =>
+    "retryable" in value
+      ? "Unavailable"
+      : "reason" in value
+        ? "Absent"
+        : present;
+
 export const resolvers = {
-  // Unions cannot be executed without a type discriminator. Resolving on the
-  // presence of a member-specific field rather than on a stored __typename
-  // keeps resolvers free to return plain objects.
-  LabelResult: {
-    __resolveType: (value: Record<string, unknown>) =>
-      "retryable" in value
-        ? "Unavailable"
-        : "reason" in value
-          ? "Absent"
-          : "Label",
-  },
+  LabelResult: { __resolveType: resolveDegradable("Label") },
+  AlternativesResult: { __resolveType: resolveDegradable("Alternatives") },
 
   Query: {
     // Null and empty are honest placeholders: the schema is settled ahead of

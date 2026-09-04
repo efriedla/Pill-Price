@@ -133,16 +133,37 @@ describe("degradable fields are unions (ADR-010 response shape)", () => {
     expect(() => fieldType("Absent", "retryable")).toThrow();
   });
 
-  it("discriminates the three members without a stored __typename", () => {
-    const resolveType = resolvers.LabelResult.__resolveType.bind(
-      resolvers.LabelResult,
+  it("makes enrichment a union too — an empty list is not an answer", () => {
+    // ADR-010: enrichment is always partial, and "RxNorm found no alternatives"
+    // and "RxNorm was unreachable" are different sentences. A bare [Drug!]!
+    // renders both as an empty section.
+    const alternatives = schema.getType("AlternativesResult");
+    expect(alternatives?.constructor.name).toBe("GraphQLUnionType");
+    expect(
+      (alternatives as GraphQLUnionType)
+        .getTypes()
+        .map((t) => t.name)
+        .sort(),
+    ).toEqual(["Absent", "Alternatives", "Unavailable"]);
+    expect(fieldType("Drug", "alternatives")).toBe("AlternativesResult!");
+  });
+
+  it("discriminates the members of every degradable union alike", () => {
+    const label = resolvers.LabelResult.__resolveType;
+    expect(label({ openFDALabel: "…" })).toBe("Label");
+    expect(label({ reason: "openFDA has no label…", source: "openfda" })).toBe(
+      "Absent",
     );
-    expect(resolveType({ openFDALabel: "…" })).toBe("Label");
+    // Unavailable carries a reason too, so the retryable check has to come
+    // first or every Unavailable resolves as Absent.
+    expect(label({ reason: "…", source: "openfda", retryable: true })).toBe(
+      "Unavailable",
+    );
+
+    const alternatives = resolvers.AlternativesResult.__resolveType;
+    expect(alternatives({ drugs: [] })).toBe("Alternatives");
     expect(
-      resolveType({ reason: "openFDA has no label…", source: "openfda" }),
+      alternatives({ reason: "RxNorm found none", source: "rxnorm" }),
     ).toBe("Absent");
-    expect(
-      resolveType({ reason: "…", source: "openfda", retryable: true }),
-    ).toBe("Unavailable");
   });
 });

@@ -20,6 +20,13 @@ export type AlternativeKind =
   | 'BRAND'
   | 'GENERIC';
 
+export type Alternatives = {
+  __typename: 'Alternatives';
+  drugs: Array<Drug>;
+};
+
+export type AlternativesResult = Absent | Alternatives | Unavailable;
+
 export type Coverage = {
   __typename: 'Coverage';
   pricedPackages: Scalars['Int']['output'];
@@ -28,7 +35,7 @@ export type Coverage = {
 
 export type Drug = {
   __typename: 'Drug';
-  alternatives: Array<Drug>;
+  alternatives: AlternativesResult;
   isGeneric: Scalars['Boolean']['output'];
   label: LabelResult;
   name: Scalars['String']['output'];
