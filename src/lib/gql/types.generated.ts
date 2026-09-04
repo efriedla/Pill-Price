@@ -9,20 +9,28 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type Absent = {
+  __typename: 'Absent';
+  reason: Scalars['String']['output'];
+  source: Scalars['String']['output'];
+};
+
 export type AlternativeKind =
   | 'ALL'
   | 'BRAND'
   | 'GENERIC';
 
 export type Coverage = {
+  __typename: 'Coverage';
   pricedPackages: Scalars['Int']['output'];
   totalPackages: Scalars['Int']['output'];
 };
 
 export type Drug = {
+  __typename: 'Drug';
   alternatives: Array<Drug>;
   isGeneric: Scalars['Boolean']['output'];
-  label?: Maybe<Label>;
+  label: LabelResult;
   name: Scalars['String']['output'];
   packages: Array<Package>;
   price?: Maybe<Price>;
@@ -47,22 +55,28 @@ export type Granularity =
   | 'WEEKLY';
 
 export type Label = {
+  __typename: 'Label';
   openFDALabel?: Maybe<Scalars['String']['output']>;
 };
 
+export type LabelResult = Absent | Label | Unavailable;
+
 export type Package = {
+  __typename: 'Package';
   description: Scalars['String']['output'];
   ndc: Scalars['ID']['output'];
   price?: Maybe<Price>;
 };
 
 export type Price = {
+  __typename: 'Price';
   asOf: Scalars['String']['output'];
   effectiveDate: Scalars['String']['output'];
   pricePerUnit: Scalars['String']['output'];
 };
 
 export type PricePoint = {
+  __typename: 'PricePoint';
   observations: Scalars['Int']['output'];
   perUnit?: Maybe<Scalars['String']['output']>;
   periodEnd: Scalars['String']['output'];
@@ -77,6 +91,7 @@ export type PriceRange =
   | 'YEAR';
 
 export type PriceSeries = {
+  __typename: 'PriceSeries';
   coverage: Coverage;
   granularity: Granularity;
   points: Array<PricePoint>;
@@ -85,6 +100,7 @@ export type PriceSeries = {
 };
 
 export type Query = {
+  __typename: 'Query';
   drug?: Maybe<Drug>;
   search: Array<Drug>;
 };
@@ -97,4 +113,11 @@ export type QueryDrugArgs = {
 
 export type QuerySearchArgs = {
   term: Scalars['String']['input'];
+};
+
+export type Unavailable = {
+  __typename: 'Unavailable';
+  reason: Scalars['String']['output'];
+  retryable: Scalars['Boolean']['output'];
+  source: Scalars['String']['output'];
 };

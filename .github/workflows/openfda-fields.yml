@@ -1,0 +1,48 @@
+name: openFDA field names
+
+# ADR-010's build-time guard. openFDA answers a query against a renamed field
+# with a 404 that is byte-identical to "this drug has no label", so a rename is
+# invisible on the request path and total in aggregate: every lookup silently
+# reports no label. This is the only place it can be caught.
+#
+# It runs on its own schedule as well as on PRs because the check is only as
+# fresh as the last run — a rename that lands between deploys is a gap in
+# coverage, and a weekly run bounds that gap to a week without putting an
+# upstream outage in the path of an unrelated merge.
+on:
+  pull_request:
+    paths:
+      - "src/server/openfda-client.ts"
+      - "src/server/upstream/openfda.schema.ts"
+      - "scripts/check-openfda-fields.ts"
+      - ".github/workflows/openfda-fields.yml"
+  push:
+    branches: [main]
+  schedule:
+    # Mondays, 07:00 UTC.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: openfda-fields-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fields:
+    name: field names still exist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Talks to the live api.fda.gov: one request per field, ~350 ms apart,
+      # well inside the unauthenticated 240/min limit. A network failure fails
+      # the run deliberately — an unverified field list is what this exists to
+      # stop shipping — and is reported as such rather than as a rename.
+      - run: npm run check:openfda-fields
