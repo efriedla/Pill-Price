@@ -3,17 +3,18 @@
 Operating rule 1: no feature starts until the decision doc exists. Copy
 `000-template.md`, number it sequentially, and link it from the PR body.
 
-| ADR | Title | Status |
-| --- | --- | --- |
-| [001](001-rendering-strategy.md) | Rendering strategy per route | accepted |
-| [002](002-styling-and-design-tokens.md) | Styling and design tokens | accepted |
-| [003](003-module-boundaries.md) | Module boundaries | accepted |
-| [004](004-bff-and-schema-design.md) | BFF and schema design | accepted |
-| 005 | Static/dynamic split for `/search` and `/drug/[rxcui]` | W3 |
-| 006 | URL-as-state over a client store | W4 |
-| 007 | Performance budgets + enforcement | W6 |
-| 008 | Contentful guides *(optional)* | W7 |
-| [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5) | accepted |
+| ADR                                     | Title                                                  | Status   |
+| --------------------------------------- | ------------------------------------------------------ | -------- |
+| [001](001-rendering-strategy.md)        | Rendering strategy per route                           | accepted |
+| [002](002-styling-and-design-tokens.md) | Styling and design tokens                              | accepted |
+| [003](003-module-boundaries.md)         | Module boundaries                                      | accepted |
+| [004](004-bff-and-schema-design.md)     | BFF and schema design                                  | accepted |
+| 005                                     | Static/dynamic split for `/search` and `/drug/[rxcui]` | W3       |
+| 006                                     | URL-as-state over a client store                       | W4       |
+| 007                                     | Performance budgets + enforcement                      | W6       |
+| 008                                     | Contentful guides _(optional)_                         | W7       |
+| [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5)            | accepted |
+| [010](010-upstream-error-taxonomy.md)   | Upstream error taxonomy: partial vs fatal (Q3)         | accepted |
 
 ## What the W1 scaffold assumed, and where it landed
 
