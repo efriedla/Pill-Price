@@ -23,9 +23,16 @@ const config: CodegenConfig = {
         enumsAsTypes: true,
         // Required by `verbatimModuleSyntax`.
         useTypeImports: true,
-        // These are the BFF's own domain types, not a client cache's. Nothing
-        // discriminates on __typename yet; add it back when something does.
-        skipTypename: true,
+        // ADR-010 put unions in the schema, and a union is only discriminable
+        // by __typename — without it the generated LabelResult is a union of
+        // structurally similar objects and `switch` on it does not narrow.
+        // Something now discriminates on __typename, so it is back.
+        skipTypename: false,
+        // And non-optional, which is what actually makes LabelResult a
+        // discriminated union: with an optional __typename a `switch` narrows
+        // nothing, and a client that forgets the Unavailable branch compiles
+        // fine — the exact failure the union exists to prevent.
+        nonOptionalTypename: true,
       },
     },
   },
