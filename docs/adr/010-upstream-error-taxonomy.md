@@ -464,6 +464,16 @@ explicitly because this is a healthcare project with a threat-model deliverable.
   further on the scheduler ADR-009 introduced.
 - **Ingredient-level RxCUIs hard-fail at the openFDA client.** Anything holding
   one must resolve it to products first, and Q2/Q7 do not answer that yet.
+- **`Alternatives.drugs` is never empty.** RxNorm finding no alternatives is
+  `Absent`, not an `Alternatives` carrying an empty list — the empty list is the
+  silent-empty failure this ADR exists to forbid, and having two encodings of
+  "none" would let a client render one of them as nothing. The type is
+  `[Drug!]!`, so the compiler does not enforce this; the resolver must.
+- **The union discriminator checks `retryable` before `reason`.** `Unavailable`
+  carries both fields, so testing `reason` first would resolve every
+  `Unavailable` as `Absent` — a retryable outage silently rendered as a settled
+  fact, with the retry affordance stripped. The order is load-bearing and is
+  written once, in `resolveDegradable`, rather than per field.
 
 ## Revisit if
 
