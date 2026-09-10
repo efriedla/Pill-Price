@@ -99,6 +99,36 @@ constants, this can run **once in CI or at boot** — not once per 404. The cana
 idea was right that a second request is the only available evidence; it was wrong
 about when to spend it.
 
+> **Amendment, 2026-09-10 — `count=` alone is not sufficient.** Implementing the
+> check (PR #25) showed the table above is true but incomplete, in two ways
+> measured against the live API on 2026-09-04.
+>
+> First, `count=` has a **third** answer: a text field returns **500
+> `illegal_argument_exception`**, because Elasticsearch will only aggregate it in
+> its `.exact` form. That is proof the field exists, not a failure —
+> `count=openfda.rxcui` 500s while `count=openfda.rxcui.exact` succeeds, so a
+> checker that read the 500 as a failure would reject every `openfda.*` field.
+>
+> Second, and the reason this is an amendment rather than a footnote: the long
+> **narrative fields** — `indications_and_usage`, `warnings`, `description`,
+> `dosage_and_administration`, `adverse_reactions`, `contraindications` — are
+> analysed text with no keyword sub-field, so _neither_ form can be counted. Both
+> `count=indications_and_usage` and `count=indications_and_usage.exact` return
+> "Nothing to count", identically to a fabricated field. **A count-only check
+> reports six live fields as gone**, which is a build that fails on a healthy
+> upstream — the opposite of this guard's purpose, and a good deal more likely to
+> get the guard switched off than a rename is to happen.
+>
+> An uncountable field therefore falls back to **`search=_exists_:<field>`**,
+> which separates the two cleanly: `_exists_:indications_and_usage` matches
+> **253,295** labels, while `_exists_:nonsense_field` returns "No matches
+> found!". The fallback assumes a real field is populated somewhere in the
+> corpus. That holds for every field we query by six orders of magnitude, and
+> fails only for a field present in the mapping but set on no document at all —
+> which we would have no reason to read. The decision below is unchanged: field
+> validation stays off the request path, and a 404 that reaches the resolver
+> still has one meaning left. Only the mechanism is larger than "`count=`".
+
 **4. There is a _third_ cause of a silent 404, and it is the likeliest real
 bug: querying at the wrong RxCUI level.** `openfda.rxcui` holds **product-level**
 RxCUIs. Ingredient-level ones 404 exactly like an absent label:
@@ -232,8 +262,9 @@ Ship resolvers with openFDA 404 → partial and revisit when something breaks.
 ### Option E — Option B, with field-name validation moved off the request path
 
 As B — classify by failure kind — and resolve Q3 not at request time but at
-build/boot time: assert every openFDA field name we query against `count=<field>`
-in CI, and fail the build when one stops existing. At request time a 404 is then
+build/boot time: assert every openFDA field name we query still exists upstream
+in CI — `count=<field>`, with an `_exists_` fallback per the amendment to
+measurement 3 — and fail the build when one stops existing. At request time a 404 is then
 **unambiguously `absent`**, because the only other thing it could have meant has
 already been ruled out.
 
@@ -298,10 +329,11 @@ request rather than detected after it:
   and a test covers it. It lives in the client, not the resolver, because it is a
   fact about what that upstream can answer for and must hold for call sites that
   do not exist yet.
-- **The `count=<field>` check, in CI.** Every openFDA field name we query is
-  asserted to still exist at build time, and the build fails on a rename
-  (measurement 3). This rules out asking with a field name that no longer means
-  anything.
+- **The field-name check, in CI.** Every openFDA field name we query is asserted
+  to still exist at build time, and the build fails on a rename (measurement 3,
+  as amended): `count=<field>` where the field is countable, falling back to
+  `search=_exists_:<field>` for the narrative fields that no aggregation can
+  see. This rules out asking with a field name that no longer means anything.
 
 With both ruled out, a 404 that reaches the resolver has one meaning left.
 `absent` is a conclusion reached by exhausting the alternatives, not a detection —
@@ -432,6 +464,16 @@ explicitly because this is a healthcare project with a threat-model deliverable.
   further on the scheduler ADR-009 introduced.
 - **Ingredient-level RxCUIs hard-fail at the openFDA client.** Anything holding
   one must resolve it to products first, and Q2/Q7 do not answer that yet.
+- **`Alternatives.drugs` is never empty.** RxNorm finding no alternatives is
+  `Absent`, not an `Alternatives` carrying an empty list — the empty list is the
+  silent-empty failure this ADR exists to forbid, and having two encodings of
+  "none" would let a client render one of them as nothing. The type is
+  `[Drug!]!`, so the compiler does not enforce this; the resolver must.
+- **The union discriminator checks `retryable` before `reason`.** `Unavailable`
+  carries both fields, so testing `reason` first would resolve every
+  `Unavailable` as `Absent` — a retryable outage silently rendered as a settled
+  fact, with the retry affordance stripped. The order is load-bearing and is
+  written once, in `resolveDegradable`, rather than per field.
 
 ## Revisit if
 
