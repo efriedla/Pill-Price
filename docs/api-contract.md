@@ -57,11 +57,11 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 | `rxcui: ID!` | RxNorm | as `drug` | Echoed from the request path. Do not read it from `relatedGroup.rxcui`, which is `null` even when the RxCUI was in the request URL (§1.3). |
 | `name: String!` | RxNorm `properties.name` | as `drug` | Non-null. If properties came back `{}`, the *drug* is null — this field never degrades to `""`. |
 | `tty: String!` | RxNorm `properties.tty` | as `drug` | Non-null. One of 19 term types. |
-| `isGeneric: Boolean!` | derived from `tty` | as `drug` | **Derived, not fetched.** The TTY→generic mapping is a product decision entangled with **Q7, open**; it must live in one documented place, not inline in a resolver. |
+| `isGeneric: Boolean!` | derived from `tty` | as `drug` | **Derived, not fetched.** **Q7 closed:** generic is `SCD`/`GPCK`, brand is `SBD`/`BPCK` — RxNorm's own naming, where the *C*linical and *G*eneric forms carry no brand. The one documented place is `src/server/tty.ts`; resolvers call `isGenericTty`, never their own check. |
 | `packages: [Package!]!` | RxNorm `/rxcui/{id}/ndcs.json` | as `drug` | Non-null; empty is legitimate. **This is the fan-out:** one metformin ER 500 MG SCD returns **401 NDCs** (§1.4). Not a classic N+1 — one concept to hundreds of NDCs, which collapse back to a handful of price series. |
 | `price: Price` | NADAC snapshot | **snapshot (weekly)** | Nullable, and **null is the typical case** — ~92% of packages have no published price (§3.3). Not an error, not a loading state, and under a snapshot not a cache miss either: the table is complete, so `null` means "nothing is published," full stop. |
 | `priceHistory(range): PriceSeries!` | NADAC snapshot | **snapshot (weekly)** | **Non-null series, possibly empty `points`.** The series always resolves so `coverage` can be reported; the *points* may be absent. Note this is the field that needs full history (~102 MB) rather than the ~3 MB latest-price table — ADR-009 flags the retention shape as a decision the sync job will force. |
-| `alternatives(kind): [Drug!]!` | RxNorm `/rxcui/{id}/allrelated.json` | as `drug` | Non-null. **Which of 19 TTYs count is Q7, open** — the enum defers the question, it does not answer it. `conceptGroup` entries may have **no `conceptProperties` key at all** (`{"tty":"BPCK"}`); without a Zod `.optional()` this is a parse failure on a valid response (§1.3). |
+| `alternatives(kind): [Drug!]!` | RxNorm `/rxcui/{id}/allrelated.json` | as `drug` | Non-null. **Q7 closed: the four dispensable product concepts — `SCD`, `SBD`, `GPCK`, `BPCK`.** Packs count: a GPCK/BPCK is a box a prescription can actually be filled with. Everything else `allrelated` returns (`IN`, `BN`, `DF`, `DFG`, `SCDC`, `SCDF`, `SCDG`, `SBDC`, `SBDF`, `SBDG`) is excluded — none is dispensable, and each would render as a Drug with a permanently null price and an `absent` label. The queried concept is dropped from its own list. **Note this set is identical to `LABEL_QUERYABLE_TTYS`**, so ADR-010's TTY assertion can never throw on an alternative; `tests/tty-mapping.test.ts` fails if they diverge. `conceptGroup` entries may have **no `conceptProperties` key at all** (`{"tty":"BPCK"}`); without a Zod `.optional()` this is a parse failure on a valid response (§1.3). |
 | `label: Label` | openFDA | cached, TTL TBD — `meta.last_updated` was one day stale when sampled | Nullable. **The ambiguity here is Q3, open, and it changes every resolver.** A label-less drug and a malformed query are **byte-identical 404s** (§2.1). Mapping 404 → partial-data notice silently swallows BFF query bugs in production. |
 
 ## `Package`
@@ -152,8 +152,14 @@ ordinary traffic, not only by a fault injection.
 | Q2 | Which of 78 SPLs is `Label`? | `Label.openFDALabel` |
 | Q3 | Is an openFDA 404 partial or fatal? | The whole degradation table |
 | Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
-| Q7 | Which TTYs are a generic alternative? | `alternatives`, `isGeneric` |
 | Q8 | Does search tolerate typos? | `search` |
+
+**Q7 is closed** (2026-09-11), folded into the rows above and implemented in
+`src/server/tty.ts`. An alternative is a dispensable product — `SCD`, `SBD`,
+`GPCK`, `BPCK` — and generic/brand splits `SCD`/`GPCK` from `SBD`/`BPCK`. The
+ingredient (`IN`) and dose form (`DF`) are **not** alternatives but are not
+discarded either: they are the drug's own identity and belong in their own
+fields on `Drug`. **That SDL change is still owed.**
 
 **Q5 and Q1 are both closed** by [ADR-009](adr/009-nadac-on-the-request-path.md)
 and folded in above.

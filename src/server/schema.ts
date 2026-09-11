@@ -132,7 +132,7 @@ export const typeDefs = /* GraphQL */ `
     packages: [Package!]!
     price: Price
     priceHistory(range: PriceRange! = YEAR): PriceSeries!
-    alternatives(kind: AlternativeKind): AlternativesResult! # DECIDE: which TTYs — Q7
+    alternatives(kind: AlternativeKind): AlternativesResult! # Q7 closed: SCD, SBD, GPCK, BPCK — see src/server/tty.ts
     label: LabelResult!
   }
 
