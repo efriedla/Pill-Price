@@ -1,0 +1,59 @@
+# Publishes the Storybook build to GitHub Pages, so the design system — and
+# the PillShotLoader mini game — can be opened and used without checking the
+# repo out. A README cannot host either: GitHub sanitizes markdown HTML, so
+# no script, iframe or interactive canvas survives it.
+#
+# Requires Settings -> Pages -> Source = "GitHub Actions", set once by hand.
+# Until that is done this workflow builds and then fails at the deploy step.
+#
+# Note this publishes a PUBLIC site. Everything in Storybook is already public
+# in this repo, so it exposes nothing new — but it is a deploy, and merging
+# this file is the decision to have one.
+name: Storybook Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race. Unlike CI, an in-flight run is allowed to
+# finish rather than being cancelled, because its second half is a publish.
+concurrency:
+  group: storybook-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build-storybook
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: storybook-static
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
