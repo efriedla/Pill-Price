@@ -13,7 +13,7 @@ import {
   SPARK,
   SURFACE,
   type Palette,
-} from "./PillShotLoader.palette";
+} from "./game.palette";
 
 /* ------------------------------------------------------------------
    Pill Shot — a loading-screen mini game.
