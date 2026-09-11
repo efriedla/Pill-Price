@@ -1,6 +1,6 @@
 # ADR-011: Timeout budgets, retries and backoff on the request path
 
-**Status:** proposed
+**Status:** accepted
 **Date:** 2026-09-11
 
 ## Context
