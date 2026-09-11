@@ -362,7 +362,7 @@ function scorePill(g: Game, p: Pill, b: BottleGeom, reduced: boolean) {
   const pts = clean ? 2 : 1;
   g.score += pts;
   g.streak += 1;
-  const label = clean ? "Swish! +2" : p.lid ? "Bank shot! +1" : "+1";
+  const label = clean ? "Dosed! +2" : p.lid ? "Medicated! +1" : "+1";
   g.texts.push({ x: b.bx + b.bw / 2, y: b.by - 34, text: label, life: 1 });
 
   const i = g.stack.length;
