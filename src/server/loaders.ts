@@ -70,20 +70,47 @@ export type Loaders = {
   label: DataLoader<LabelKey, LabelOutcome | null, string>;
 };
 
-export function createLoaders(deps: HttpDeps = {}): Loaders {
+/**
+ * The functions a loader calls to actually fetch.
+ *
+ * Injectable so the *production* path can route through the `use cache` layer
+ * (`./cached`) while tests keep calling the direct clients with a stubbed
+ * `fetch`. A cache key is built from a function's arguments, so the cached
+ * wrappers cannot accept `HttpDeps` — this seam is what keeps both possible.
+ */
+export type Fetchers = {
+  properties: (rxcui: string) => Promise<ConceptProperties | null>;
+  ndcs: (rxcui: string) => Promise<string[]>;
+  related: (
+    rxcui: string,
+  ) => Promise<{ tty: string; concepts: ConceptProperties[] }[]>;
+  label: (rxcui: string, tty: string) => Promise<LabelOutcome | null>;
+};
+
+export function createLoaders(
+  deps: HttpDeps = {},
+  fetchers?: Fetchers,
+): Loaders {
+  const f: Fetchers = fetchers ?? {
+    properties: (rxcui) => fetchDrugProperties(rxcui, deps),
+    ndcs: (rxcui) => fetchNdcs(rxcui, deps),
+    related: (rxcui) => fetchAllRelated(rxcui, deps),
+    label: (rxcui, tty) => fetchLabelsForRxcui(rxcui, tty, deps),
+  };
+
   return {
     properties: new DataLoader<string, ConceptProperties | null>((rxcuis) =>
-      perKey(rxcuis, (rxcui) => fetchDrugProperties(rxcui, deps)),
+      perKey(rxcuis, (rxcui) => f.properties(rxcui)),
     ),
 
     ndcs: new DataLoader<string, string[]>((rxcuis) =>
-      perKey(rxcuis, (rxcui) => fetchNdcs(rxcui, deps)),
+      perKey(rxcuis, (rxcui) => f.ndcs(rxcui)),
     ),
 
     related: new DataLoader<
       string,
       { tty: string; concepts: ConceptProperties[] }[]
-    >((rxcuis) => perKey(rxcuis, (rxcui) => fetchAllRelated(rxcui, deps))),
+    >((rxcuis) => perKey(rxcuis, (rxcui) => f.related(rxcui))),
 
     /**
      * Keyed by rxcui *and* tty, because the TTY assertion is a precondition of
@@ -91,7 +118,7 @@ export function createLoaders(deps: HttpDeps = {}): Loaders {
      * compares object keys by identity and every call is a cache miss.
      */
     label: new DataLoader<LabelKey, LabelOutcome | null, string>(
-      (keys) => perKey(keys, (k) => fetchLabelsForRxcui(k.rxcui, k.tty, deps)),
+      (keys) => perKey(keys, (k) => f.label(k.rxcui, k.tty)),
       { cacheKeyFn: (k) => `${k.rxcui}:${k.tty}` },
     ),
   };

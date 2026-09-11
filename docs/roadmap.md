@@ -81,8 +81,8 @@ This is the week that carries the most interview weight. Spend the focused hours
 **Definition of done:**
 - [ ] `api-contract.md` published: every field, its source, its freshness, its failure mode
 - [ ] Schema is codegen'd into typed hooks; no hand-written response types
-- [ ] Kill one upstream in MSW → app degrades gracefully, no crash, user sees why
-- [ ] p95 BFF response for a cached drug < 200ms (measure it, record it)
+- [x] Kill one upstream in MSW → app degrades gracefully, no crash, user sees why — `tests/kill-one-upstream.test.ts`, 9 cases
+- [x] p95 BFF response for a cached drug < 200ms (measure it, record it) — **34 ms**, recorded in [`docs/performance.md`](performance.md)
 - [ ] ADR-004 (BFF + schema design) merged
 
 ---
