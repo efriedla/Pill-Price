@@ -27,27 +27,34 @@ npm run dev           # http://localhost:3000
 npm run storybook     # http://localhost:6006
 ```
 
-## The loading game
+## The loading games
 
-Long waits have a mini game: drag back, release, shoot pills into the bottle.
-It covers a call that is genuinely in flight — never an absent one, which is a
-settled fact and gets a plain statement instead
+Long waits have a mini game. Both cover a call that is genuinely in flight —
+never an absent one, which is a settled fact and gets a plain statement instead
 ([ADR-010](docs/adr/010-upstream-error-taxonomy.md)).
 
-**It cannot be embedded here.** GitHub sanitizes HTML in markdown, so no
-script, iframe or interactive canvas survives a README. To play it:
+| | | |
+| --- | --- | --- |
+| **Pill Shot** | canvas arcade | Drag back and release to shoot pills into the bottle. Keyboard: up/down aim, left/right set power, space shoots. |
+| **Pill Sort** | SVG puzzle | Tap a bottle to pick up its top pills, tap another to drop them. Keyboard: left/right choose, Enter picks up and drops, U undoes. |
+
+**Neither can be embedded here.** GitHub sanitizes HTML in markdown, so no
+script, iframe or interactive canvas survives a README. To play them:
 
 ```bash
-npm run storybook     # then open UI/PillShotLoader
+npm run storybook     # then open UI/PillShotLoader or UI/PillSortLoader
 ```
 
-Storybook is also published on every push to `main`, so it can be opened
+Storybook is also published on every push to `main`, so they can be opened
 without a checkout:
-**[play it here](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillshotloader--loading)**
+**[Pill Shot](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillshotloader--loading)**
+·
+**[Pill Sort](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillsortloader--loading)**
 ([workflow](.github/workflows/storybook-pages.yml)).
 
-Keyboard: up and down aim, left and right set power, space or enter shoots.
-The whole thing honours `prefers-reduced-motion`.
+Both honour `prefers-reduced-motion`. Pill Sort's pills carry an imprint as well
+as two tones, so they are separable without colour, and every board it offers is
+proved solvable before you see it.
 
 ## Checks
 
