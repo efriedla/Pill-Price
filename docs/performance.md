@@ -8,22 +8,40 @@ W2 measurement it will build on, not that decision.
 
 ## Result
 
-**p95 = 34 ms against a 200 ms budget**, for a cached drug.
+**p95 = 22 ms against a 200 ms budget**, for a cached drug. (34 ms on an
+earlier run the same day — see the two-run table below.)
 
 | | cold (first request for an RxCUI) | **cached** |
 | --- | --- | --- |
 | n | 18 distinct RxCUIs | 100 requests |
-| min | 189 ms | 11 ms |
-| p50 | 226 ms | **16 ms** |
-| p90 | — | 28 ms |
-| p95 | 567 ms | **34 ms** |
-| p99 | — | 50 ms |
-| max | 567 ms | 113 ms |
+| min | 182 ms | 10 ms |
+| p50 | 221 ms | **12 ms** |
+| p90 | 495 ms | 19 ms |
+| p95 | 525 ms | **22 ms** |
+| p99 | — | 73 ms |
+| max | 525 ms | 104 ms |
 
 Measured 2026-09-11 against `npm run build && npm run start` on the author's
 machine — a production build, not `next dev`. Localhost, so the client-side of
 the number is free and the figures are the **server's** cost, which is what the
-budget is about. Live upstreams, real NADAC snapshot (4.1 MB, 2026-08-26).
+budget is about. Live upstreams, real NADAC snapshot (3.95 MB, `asOf`
+2026-09-11, 1,088,173 rows, 32,621 priced NDCs, `complete: true`).
+
+**Both columns were measured twice**, once against a 16-day-old snapshot and
+once against a same-day one, with no code change between:
+
+| | cached p50 | cached p95 | cold p50 | cold p95 |
+| --- | --- | --- | --- | --- |
+| snapshot 2026-08-26 | 16 ms | 34 ms | 226 ms | 567 ms |
+| snapshot 2026-09-11 | 12 ms | 22 ms | 221 ms | 525 ms |
+
+The second run is faster across the board, including on the **cold** path, which
+does not read the snapshot at all on its critical path in any way the snapshot's
+age could affect. So this is machine and network variance between two runs
+twenty minutes apart, **not** evidence that a fresher snapshot is faster. Quoted
+together for the same reason ADR-009 keeps both of its sync timings: one run is
+a sample, not a law. Treat p95 as *tens of milliseconds against a 200 ms
+budget*, and do not read the 12-ms difference as a result.
 
 ## The query
 
@@ -54,7 +72,7 @@ is free on both sources).
 **This is the clearest confirmation of ADR-011's central claim:** no timeout
 value could have brought the cold path under 200 ms, because the cold path is
 dominated by upstreams answering *successfully*. The budget was always the
-cache's to meet. Cold is 6.7× the cached p50 and 17× the cached p95.
+cache's to meet. Cold is 18x the cached p50 and 24x the cached p95.
 
 **What the cached column is not.** It is not "GraphQL is fast." It is the
 `use cache` layer in `src/server/cached.ts` (one week, per ADR-010, matching
@@ -74,13 +92,11 @@ a 32,500-entry Map would blow the whole budget on its own if built per request.
   returns up to 91 SPLs from 55 labelers for one drug and which of them `Label`
   names is unanswered. The openFDA *request* is made and cached, so its cost is
   in the number; only the field selection is missing.
-- **The snapshot used was 16 days old** (`asOf` 2026-08-26 against a 2026-09-11
-  run), past ADR-009's 14-day staleness threshold. That does not affect latency,
-  but the UI notice ADR-009 specifies would have been firing. **Resolved the
-  same day:** the job was re-run and the snapshot is now 1,088,173 rows /
-  32,621 priced NDCs, `complete: true`, `asOf` 2026-09-11. The figures above
-  were taken against the older snapshot; its size (4.1 MB) and shape are
-  effectively unchanged (3.95 MB), so they stand.
+- **Run-to-run variance is larger than anything measured here.** The two runs
+  above differ by 35% at cached p95 with no code change, so a future comparison
+  that turns on a few milliseconds is measuring the machine, not the app.
+  ADR-007 will need a real harness, not curl in a loop, before a budget can be
+  *enforced* rather than recorded.
 
 ## How to re-measure
 
