@@ -1,7 +1,18 @@
 import "server-only";
 
+import { requestUpstream, type HttpDeps } from "./http";
+import { parseJsonBody } from "./upstream/parse";
+import { parseLabelSearch, type LabelOutcome } from "./upstream/openfda.schema";
+
 /** Upstream: openFDA. Labels, NDC, manufacturer, pharmacologic class. */
 export const OPENFDA_BASE_URL = "https://api.fda.gov";
+
+/**
+ * How many labels to ask for per drug. A product RxCUI can carry scores of
+ * SPLs — **which of them `Label` names is Q2, still open** — so this caps the
+ * payload without choosing between them.
+ */
+export const LABEL_PAGE_SIZE = 25;
 
 /**
  * ADR-010's two guards live here, at the client, because both are facts about
@@ -112,3 +123,41 @@ export const OPENFDA_QUERIED_FIELDS = [
   "contraindications",
   "description",
 ] as const;
+
+/**
+ * Fetch the labels openFDA holds for one product RxCUI.
+ *
+ * **Per key, never OR-batched.** `api-contract.md` §Batching and
+ * upstream-notes §2.4: `search=openfda.rxcui:("a" OR "b")` ranks results
+ * globally rather than grouping them by key, so a batched loader can receive
+ * zero rows for one key while the API reports success. Q4 is still open; until
+ * it closes, per-key requests are the only shape that guarantees coverage.
+ *
+ * The TTY assertion runs **before** the request, not after a 404 comes back.
+ * That is the whole point of ADR-010's guard: openFDA's 404 is byte-identical
+ * for "no label for this drug" and "we asked about the wrong kind of thing",
+ * so `absent` is only safe once every way *we* can provoke one is eliminated.
+ *
+ * Returns `null` for a genuine 404 — the caller turns that into ADR-010's
+ * `Absent`, naming openFDA as the source, because a reader who cannot see which
+ * source came up empty cannot rule that source out.
+ */
+export async function fetchLabelsForRxcui(
+  rxcui: string,
+  tty: string,
+  deps: HttpDeps = {},
+): Promise<LabelOutcome | null> {
+  assertLabelQueryableTty(rxcui, tty);
+
+  const url =
+    `${OPENFDA_BASE_URL}/drug/label.json` +
+    `?search=openfda.rxcui:%22${encodeURIComponent(rxcui)}%22&limit=${LABEL_PAGE_SIZE}`;
+
+  const res = await requestUpstream("openfda", url, deps);
+
+  // A 404 costs exactly what a 200 costs (ADR-011, measurement 3), so this is
+  // read off the response and never off the clock.
+  if (res.status === 404) return null;
+
+  return parseLabelSearch(parseJsonBody("openfda", "drug/label.json", res.body));
+}

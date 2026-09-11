@@ -8,7 +8,8 @@ import {
   assertLabelQueryableTty,
   isLabelQueryableTty,
 } from "@/server/openfda-client";
-import { resolvers, schema } from "@/server/schema";
+import { resolvers } from "@/server/resolvers";
+import { schema } from "@/server/schema";
 import {
   labelResultSchema,
   openFdaMetaSchema,

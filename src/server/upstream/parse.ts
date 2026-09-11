@@ -115,3 +115,34 @@ export const isoDateString = z
   .refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), {
     message: "expected YYYY-MM-DD, or an empty encoding of absent",
   });
+
+/**
+ * Turn a response body into JSON, or fail as a contract failure.
+ *
+ * ADR-010's `malformed`: loud, never retried, and never read as absent. A body
+ * that is not JSON means the upstream is not speaking its own contract — an
+ * error page, a proxy interstitial, a plain-text `Not found`. Treating that as
+ * "no data" would render a broken upstream as a settled fact about a drug.
+ *
+ * It is deliberately not `JSON.parse` at the call site: a bare `SyntaxError`
+ * loses which upstream and which endpoint produced it, which is precisely what
+ * upstream-notes §1.2 names as the likeliest source of an unexplained 500.
+ */
+export function parseJsonBody(
+  upstream: Upstream,
+  endpoint: string,
+  body: string,
+): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    const preview = body.slice(0, 120).replace(/\s+/g, " ").trim();
+    throw new UpstreamParseError(upstream, endpoint, [
+      {
+        code: "custom",
+        path: [],
+        message: `response was not JSON: "${preview}"`,
+      } as z.core.$ZodIssue,
+    ]);
+  }
+}
