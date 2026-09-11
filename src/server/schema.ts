@@ -1,6 +1,8 @@
 import "server-only";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 
+import { resolvers } from "./resolvers";
+
 /**
  * The GraphQL schema is written as a document first, before any resolver —
  * see the W2 operating rule.
@@ -11,8 +13,8 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
  * expressible at all — a comparison is `drug -> alternatives -> priceHistory`,
  * which cannot be written when prices are only addressable from the root.
  *
- * Resolvers here are stubs. They return "no data" rather than plausible-looking
- * fixtures. ADR-004 settles this schema but deliberately leaves the data path
+ * Resolvers live in `./resolvers` and are still stubs. They return "no data"
+ * rather than plausible-looking fixtures. ADR-004 settles this schema but deliberately leaves the data path
  * downstream of it (docs/upstream-notes.md §5 Q5), and a stub that invents a
  * price would read as a working feature.
  */
@@ -130,7 +132,7 @@ export const typeDefs = /* GraphQL */ `
     packages: [Package!]!
     price: Price
     priceHistory(range: PriceRange! = YEAR): PriceSeries!
-    alternatives(kind: AlternativeKind): AlternativesResult! # DECIDE: which TTYs — Q7
+    alternatives(kind: AlternativeKind): AlternativesResult! # Q7 closed: SCD, SBD, GPCK, BPCK — see src/server/tty.ts
     label: LabelResult!
   }
 
@@ -139,36 +141,6 @@ export const typeDefs = /* GraphQL */ `
     search(term: String!): [Drug!]! # DECIDE: typo tolerance — Q8
   }
 `;
-
-/**
- * Unions cannot be executed without a type discriminator, and ADR-010's two
- * degraded members are shared across every degradable field — so the rule that
- * recognises them is written once. Resolving on the presence of a
- * member-specific field rather than on a stored `__typename` keeps resolvers
- * free to return plain objects.
- *
- * `retryable` is checked before `reason` because `Unavailable` carries both.
- */
-const resolveDegradable =
-  (present: string) => (value: Record<string, unknown>) =>
-    "retryable" in value
-      ? "Unavailable"
-      : "reason" in value
-        ? "Absent"
-        : present;
-
-export const resolvers = {
-  LabelResult: { __resolveType: resolveDegradable("Label") },
-  AlternativesResult: { __resolveType: resolveDegradable("Alternatives") },
-
-  Query: {
-    // Null and empty are honest placeholders: the schema is settled ahead of
-    // the data path, so "no drug yet" is the truthful answer until ADR-004
-    // says where prices live.
-    drug: () => null,
-    search: () => [],
-  },
-};
 
 export const schema = makeExecutableSchema({
   typeDefs,

@@ -9,6 +9,7 @@ import {
 } from "graphql";
 import { describe, expect, it } from "vitest";
 
+import { resolvers } from "@/server/resolvers";
 import * as schemaModule from "@/server/schema";
 
 /**
@@ -29,9 +30,17 @@ import * as schemaModule from "@/server/schema";
  */
 
 const { typeDefs } = schemaModule;
-const resolvers = (schemaModule as Record<string, unknown>).resolvers as
-  | Record<string, Record<string, unknown>>
-  | undefined;
+
+/**
+ * Imported from `@/server/resolvers`, not probed off the schema module.
+ *
+ * This was `(schemaModule as Record<string, unknown>).resolvers`, guarded by
+ * `it.runIf(resolvers)` so it lay dormant until resolvers existed. When they
+ * moved out of `schema.ts` the probe returned `undefined` and assertion 3
+ * **silently stopped running** rather than failing — the exact shape of bug it
+ * exists to catch. A direct import makes a move a compile error instead.
+ */
+const resolverMap = resolvers as Record<string, Record<string, unknown>>;
 
 const builtInScalars = new Set(specifiedScalarTypes.map((s) => s.name));
 
@@ -64,7 +73,7 @@ describe("custom scalars", () => {
       .filter((t) => !t.name.startsWith("__") && !builtInScalars.has(t.name));
 
     const unimplemented = custom
-      .filter((t) => !(resolvers?.[t.name] instanceof GraphQLScalarType))
+      .filter((t) => !(resolverMap[t.name] instanceof GraphQLScalarType))
       .map((t) => t.name);
 
     expect(unimplemented).toEqual([]);
@@ -72,11 +81,11 @@ describe("custom scalars", () => {
 });
 
 describe("resolvers", () => {
-  it.runIf(resolvers)("only define fields that exist in the SDL", () => {
+  it("only defines fields that exist in the SDL", () => {
     const schema = buildSchema(typeDefs);
 
     const unknown: string[] = [];
-    for (const [typeName, fields] of Object.entries(resolvers ?? {})) {
+    for (const [typeName, fields] of Object.entries(resolverMap)) {
       const type = schema.getType(typeName);
 
       if (!type) {
