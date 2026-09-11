@@ -149,10 +149,28 @@ ordinary traffic, not only by a fault injection.
 
 | Q | Question | Blocks |
 | --- | --- | --- |
-| Q2 | Which of 78 SPLs is `Label`? | `Label.openFDALabel` |
+| Q2 | Which of the SPLs is `Label`? | `Label.openFDALabel`, `LABEL_PAGE_SIZE` |
 | Q3 | Is an openFDA 404 partial or fatal? | The whole degradation table |
 | Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
 | Q8 | Does search tolerate typos? | `search` |
+
+**Q2 measured but deliberately deferred (2026-09-11).** Sampled live:
+`atorvastatin 10 MG Oral Tablet` (SCD 617312) has **91 SPLs from 55 distinct
+labelers**. They are not copies — `indications_and_usage` runs 0, 1,093, 2,199,
+2,197 and 4,330 characters across the first five, and at least one is empty. The
+most prolific labelers are **repackagers** (Bryant Ranch Prepack, REMEDYREPACK,
+A-S Medication Solutions, Cardinal Health), i.e. the ones a reader has least
+reason to care about.
+
+So "most recent" surfaces a repackager and "first" can surface an empty
+document; both are arbitrary picks dressed as an answer. The real question is
+therefore **what `Label` is** — one document, a merged view, or a count plus a
+link — not which of the 91 to choose. `Label.openFDALabel: String` presumes the
+first of those and should not be treated as settled.
+
+Until it closes, `LABEL_PAGE_SIZE` in `src/server/openfda-client.ts` caps the
+payload at 25 without choosing between them. It is a placeholder, not a
+decision.
 
 **Q7 is closed** (2026-09-11), folded into the rows above and implemented in
 `src/server/tty.ts`. An alternative is a dispensable product — `SCD`, `SBD`,
