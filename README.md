@@ -27,6 +27,28 @@ npm run dev           # http://localhost:3000
 npm run storybook     # http://localhost:6006
 ```
 
+## The loading game
+
+Long waits have a mini game: drag back, release, shoot pills into the bottle.
+It covers a call that is genuinely in flight — never an absent one, which is a
+settled fact and gets a plain statement instead
+([ADR-010](docs/adr/010-upstream-error-taxonomy.md)).
+
+**It cannot be embedded here.** GitHub sanitizes HTML in markdown, so no
+script, iframe or interactive canvas survives a README. To play it:
+
+```bash
+npm run storybook     # then open UI/PillShotLoader
+```
+
+Storybook is also published on every push to `main`, so it can be opened
+without a checkout:
+**[play it here](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillshotloader--loading)**
+([workflow](.github/workflows/storybook-pages.yml)).
+
+Keyboard: up and down aim, left and right set power, space or enter shoots.
+The whole thing honours `prefers-reduced-motion`.
+
 ## Checks
 
 All five are required to merge ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
