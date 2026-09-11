@@ -15,6 +15,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | 008                                     | Contentful guides _(optional)_                         | W7       |
 | [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5)            | accepted |
 | [010](010-upstream-error-taxonomy.md)   | Upstream error taxonomy: partial vs fatal (Q3)         | accepted |
+| [011](011-timeouts-and-retries.md)     | Timeout budgets, retries and backoff on the request path | proposed |
 
 ## What the W1 scaffold assumed, and where it landed
 

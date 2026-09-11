@@ -25,6 +25,13 @@ openFDA label → NADAC prices — takes **~6.0 seconds** cold:
 | NADAC datastore query | 2680 ms |
 | **Total** | **≈5977 ms** |
 
+> **Superseded for RxNorm and openFDA by [ADR-011](adr/011-timeouts-and-retries.md),
+> 2026-09-11.** The table above is one sample per endpoint. A 36-sample sweep gives
+> RxNorm a **114 ms p50** against a **1197 ms max**, and openFDA a **589 ms p50**
+> against a **1757 ms max** — so these figures are neither typical nor worst-case,
+> and the "cold latency" framing hides a tail that is 10× the body. ADR-011's
+> timeout budgets are derived from the maxima, not from this table.
+
 The p95 target is 200 ms. The gap is not closable by parallelizing — NADAC alone
 is 2.7 s, and it is 2.7 s *every time*, including for a miss (see below). Whatever
 ADR-004 decides, the pricing path cannot be a per-request upstream call.
@@ -363,3 +370,37 @@ as a timestamp rather than a constant.
 
 The snapshot job in `src/server/nadac/` is the maintained version of all of the
 above; these are for checking upstream by hand when it misbehaves.
+
+### 6.2 Latency sweep (ADR-011)
+
+Folded in from [`docs/adr/011-timeouts-and-retries.md`](adr/011-timeouts-and-retries.md),
+which is where these were first run. This is what produced the distributions that
+replace §0's single-sample table for RxNorm and openFDA.
+
+```sh
+# 18 real RxCUIs spanning six ingredients, sampled twice (warm and cold).
+RX=$(for n in metformin lisinopril atorvastatin amlodipine levothyroxine sertraline; do
+  curl -s "https://rxnav.nlm.nih.gov/REST/drugs.json?name=$n" \
+    | python3 -c 'import sys,json;g=json.load(sys.stdin).get("drugGroup") or {};print(" ".join([p["rxcui"] for c in (g.get("conceptGroup") or []) if c.get("tty") in ("SCD","SBD") for p in (c.get("conceptProperties") or [])[:3]][:3]))'
+done)
+
+for pass in 1 2; do for r in $RX; do
+  for ep in properties ndcs; do
+    curl -s -o /dev/null -m 30 -w "rxnorm.$ep\t%{http_code}\t%{time_total}\n" \
+      "https://rxnav.nlm.nih.gov/REST/rxcui/$r/$ep.json"
+  done
+  # NOTE: related.json REQUIRES tty= or rela=. Without one it is HTTP 400 on
+  # every request, which reads as an upstream outage and is our own bug.
+  curl -s -o /dev/null -m 30 -w "rxnorm.related\t%{http_code}\t%{time_total}\n" \
+    "https://rxnav.nlm.nih.gov/REST/rxcui/$r/related.json?tty=SCD+SBD+GPCK+BPCK"
+  curl -s -o /dev/null -m 30 -w "openfda.label\t%{http_code}\t%{time_total}\n" \
+    "https://api.fda.gov/drug/label.json?search=openfda.rxcui:%22$r%22&limit=1"
+  sleep 0.1
+done; done
+```
+
+Backgrounding the same loop 12-wide gives the concurrency figures. Both upstreams
+are unaffected by 12-way concurrency — unlike NADAC's sustained paging, which
+degrades 3–8× against its spot checks (§6's note). Costs ~36 openFDA requests
+against the documented 1,000/day unkeyed cap (§2.5), so it is cheap to repeat but
+not free.
