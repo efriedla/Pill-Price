@@ -153,6 +153,22 @@ const eslintConfig = defineConfig([
     },
   },
 
+  {
+    // The one exemption to the rule above, declared by path so it stays a
+    // hole of known size rather than an inline disable that spreads.
+    //
+    // PillShotLoader is a canvas mini game. Its colours are artwork, not a
+    // design system: a warm candy palette with no overlap with the product's
+    // five cool tokens and no semantic role. They are also unreachable by the
+    // token layer in principle — a canvas `fillStyle` takes a colour string
+    // and cannot resolve `var(--x)`.
+    //
+    // Only the palette module is exempt. The component that consumes it stays
+    // under the rule, so a stray hex in game logic still fails the build.
+    files: ["src/ui/PillShotLoader.palette.ts"],
+    rules: { "no-restricted-syntax": "off" },
+  },
+
   globalIgnores([
     ".next/**",
     "out/**",
