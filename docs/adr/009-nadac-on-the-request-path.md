@@ -100,6 +100,20 @@ slow on the new distribution (2.16 s for the `>=` scan; 1.55 s for an exact
 > the same underlying slowness. Measured by the snapshot job in
 > `src/server/nadac/`, which reported `complete: true` with 1,028,250 of
 > 1,028,250 rows fetched.
+>
+> **Run again 2026-09-11: 307.9 s — about five minutes, not nineteen.**
+> 1,088,173 rows, `complete: true`, dataset ID still `pinned`. That is **3.7x
+> faster** than the 08-27 run on 6% *more* rows, so the gap is the network or
+> the upstream's day, not the row count.
+>
+> Both figures stand; neither is "the" number. Two runs is not a distribution,
+> and the same lesson that produced the 08-27 correction applies to this one —
+> a fast run is no more the truth than a fast page was. **Plan against the 19
+> minutes, not the 5:** sizing a weekly job against its best observed run is how
+> the 2-4 minute estimate went wrong in the first place.
+>
+> The decision is untouched either way. Anywhere between five and twenty minutes
+> once a week, off the request path, costs nothing a user can perceive.
 
 **5. The useful subset is small.** Rows are 375 B each as returned, **99 B**
 carrying only `(ndc, nadac_per_unit, effective_date, pricing_unit)`. Full history

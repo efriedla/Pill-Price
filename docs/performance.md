@@ -75,9 +75,12 @@ a 32,500-entry Map would blow the whole budget on its own if built per request.
   names is unanswered. The openFDA *request* is made and cached, so its cost is
   in the number; only the field selection is missing.
 - **The snapshot used was 16 days old** (`asOf` 2026-08-26 against a 2026-09-11
-  run), which is past ADR-009's 14-day staleness threshold. That does not affect
-  latency, but it does mean the weekly job has not run recently and the UI
-  notice ADR-009 specifies would be firing.
+  run), past ADR-009's 14-day staleness threshold. That does not affect latency,
+  but the UI notice ADR-009 specifies would have been firing. **Resolved the
+  same day:** the job was re-run and the snapshot is now 1,088,173 rows /
+  32,621 priced NDCs, `complete: true`, `asOf` 2026-09-11. The figures above
+  were taken against the older snapshot; its size (4.1 MB) and shape are
+  effectively unchanged (3.95 MB), so they stand.
 
 ## How to re-measure
 
