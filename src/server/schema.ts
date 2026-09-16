@@ -13,10 +13,13 @@ import { resolvers } from "./resolvers";
  * expressible at all — a comparison is `drug -> alternatives -> priceHistory`,
  * which cannot be written when prices are only addressable from the root.
  *
- * Resolvers live in `./resolvers` and are still stubs. They return "no data"
- * rather than plausible-looking fixtures. ADR-004 settles this schema but deliberately leaves the data path
- * downstream of it (docs/upstream-notes.md §5 Q5), and a stub that invents a
- * price would read as a working feature.
+ * Resolvers live in `./resolvers` and are real as of #36 — identity, packages,
+ * price, alternatives and label all resolve. The one field with no resolver
+ * behind it is `Drug.priceHistory`, and it is nullable for exactly that reason;
+ * see the comment on the field. Nothing here invents a price: ADR-004 settles
+ * this schema but deliberately leaves the data path downstream of it
+ * (docs/upstream-notes.md §5 Q5), and a stub that invented one would read as a
+ * working feature.
  */
 
 export const typeDefs = /* GraphQL */ `
@@ -150,7 +153,28 @@ export const typeDefs = /* GraphQL */ `
     isGeneric: Boolean!
     packages: [Package!]!
     price: Price
-    priceHistory(range: PriceRange! = YEAR): PriceSeries!
+    # Nullable, and that was a correction rather than a preference. As a
+    # non-null with no resolver behind it, selecting this field did not
+    # degrade it — the non-null propagated up and drug itself came back null,
+    # so one unimplemented field killed the whole page. Measured 2026-09-16:
+    # "Cannot return null for non-nullable field Drug.priceHistory."
+    #
+    # Null here means the series could not be built, which today is always:
+    # the snapshot stores one current price per NDC (~3 MB), and a series
+    # needs full history (~102 MB). ADR-009 flags that retention shape as a
+    # decision the sync job will force, and it is still open.
+    #
+    # This is a knowingly weaker answer than the rest of the schema gives.
+    # ADR-010 states an absence rather than rendering nothing, and a bare null
+    # cannot say whether history is missing because nothing was published or
+    # because this side never stored it. The ADR-010-shaped answer is a
+    # PriceSeriesResult union alongside LabelResult and AlternativesResult.
+    # Null is the honest interim: it stops the field from taking the page down
+    # without inventing a reason it does not have.
+    #
+    # (No backticks in this block: the SDL lives in a template literal, and a
+    # backtick here ends the string. Every gate caught it, loudly.)
+    priceHistory(range: PriceRange! = YEAR): PriceSeries
     alternatives(kind: AlternativeKind): AlternativesResult! # Q7 closed: SCD, SBD, GPCK, BPCK — see src/server/tty.ts
     label: LabelResult!
   }

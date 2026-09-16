@@ -41,7 +41,7 @@ export type Drug = {
   name: Scalars['String']['output'];
   packages: Array<Package>;
   price?: Maybe<Price>;
-  priceHistory: PriceSeries;
+  priceHistory?: Maybe<PriceSeries>;
   rxcui: Scalars['ID']['output'];
   tty: Scalars['String']['output'];
 };
