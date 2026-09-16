@@ -26,6 +26,7 @@ const priced = (pricePerUnit: string): DrugSummary =>
   summary({
     __typename: "Price",
     pricePerUnit,
+    unit: "EA",
     effectiveDate: "2026-03-18",
     asOf: "2026-03-20",
   });
@@ -132,6 +133,7 @@ describe("formatPerUnit", () => {
         summary({
           __typename: "Price",
           pricePerUnit: "0.0412",
+          unit: "EA",
           effectiveDate: "2026-08-12",
           asOf: "2026-08-14",
         }),

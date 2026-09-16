@@ -80,6 +80,7 @@ export type Price = {
   asOf: Scalars['String']['output'];
   effectiveDate: Scalars['String']['output'];
   pricePerUnit: Scalars['String']['output'];
+  unit: Scalars['String']['output'];
 };
 
 export type PricePoint = {

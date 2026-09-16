@@ -82,13 +82,9 @@ round-trip in exchange for nothing.
 | Field | Source | Freshness | Failure mode |
 | --- | --- | --- | --- |
 | `pricePerUnit: String!` | NADAC `nadac_per_unit` | **snapshot (weekly)** | Non-null within a non-null `Price`. Never `""` — NADAC uses `""` *and* `null` for absent in the same record (§3.4); both normalise to a null `Price`, not to an empty string. |
+| `unit: String!` | NADAC `pricing_unit` | **snapshot (weekly)** | Non-null, and **measured rather than assumed** (2026-09-16): 2500 rows sampled across five offsets of the 1,118,109-row 2026 dataset carry one of exactly `EA`, `ML`, `GM` — no nulls, no `""`. The Zod boundary still types the column absentable because the *column* is; the non-null guarantee is the resolver's to keep. **A row arriving without a unit becomes a null `Price`**, the same absence as no NADAC record — ui-spec §9 renders every price with its unit, so a figure whose unit is unknown is not a price this app may state. `String!` and not an enum, matching `PriceSeries.unit`: a closed enum turns a fourth value NADAC ships into a hard response error on a field the page needs. |
 | `effectiveDate: String!` | NADAC `effective_date` | **snapshot (weekly)** | **Always rendered** — ADR-009 requires the published date to be visible next to every price. ISO date as published. **The year in the dataset title is the publication year, not the coverage window** — 2026's rows start 2025-12-17 (§3.4). |
 | `asOf: String!` | **this side**, when the snapshot job ran | **snapshot (weekly)** | Non-null. **Load-bearing, not informational** — ADR-009 makes this the only defence against a silently failed job. **Past 14 days (two missed weekly runs) the UI must show a staleness notice**; 14 rather than 7, because a single miss is indistinguishable from schedule jitter. Distinct from NADAC's own `as_of_date` column; if both are exposed they must be named apart. |
-
-> **Missing field: `unit`.** `PriceSeries.unit` exists; `Price` has none. A
-> per-package price without one is not comparable — NADAC's `pricing_unit` is a
-> real column with values `EA`/`ML`/`GM`. Authoring it is the user's (roadmap
-> rule 3); this row is a placeholder so the gap is not lost.
 
 ## `PriceSeries`, `PricePoint`, `Coverage`
 

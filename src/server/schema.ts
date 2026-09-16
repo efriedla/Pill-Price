@@ -22,6 +22,25 @@ import { resolvers } from "./resolvers";
 export const typeDefs = /* GraphQL */ `
   type Price {
     pricePerUnit: String! # String, not Float — ADR-004. NADAC ships "0.02902".
+    # What one unit *is*, from NADAC's pricing_unit column: EA, ML or GM.
+    #
+    # Non-null, and measured rather than assumed (2026-09-16): 2500 rows
+    # sampled across five offsets of the 1,118,109-row 2026 dataset carry one
+    # of exactly those three values — no nulls, no "". The Zod boundary still
+    # types the column absentable, because the *column* is; the guarantee here
+    # is the resolver's to keep, not the upstream's to make.
+    #
+    # That guarantee is a real constraint on the resolver, not a formality:
+    # ui-spec §9 says every price is rendered with its unit, so a figure whose
+    # unit is unknown is not a price this app may state. A row that arrives
+    # without one becomes a **null Price** — the same absence as no NADAC
+    # record at all — rather than a Price carrying a blank unit.
+    #
+    # String! and not an enum, matching PriceSeries.unit. A closed enum would
+    # turn a fourth value NADAC decides to ship into a hard response error on
+    # a field the page needs, which is the opposite of how ADR-010 handles the
+    # unexpected. The three known values are documented, not enforced here.
+    unit: String!
     effectiveDate: String! # as published, e.g. "2026-03-18"
     asOf: String! # when this side ingested it
   }
