@@ -22,10 +22,15 @@ export type ResolvedPrice = {
   pricePerUnit: string;
   effectiveDate: string;
   asOf: string;
-  /** `EA` / `ML` / `GM`. **Not yet exposed: `Price.unit` is missing from the
-   * SDL and is the author's to add.** Carried here so the resolver does not
-   * have to re-read the snapshot once it lands. */
-  unit: string | null;
+  /**
+   * `EA` / `ML` / `GM`, exposed as `Price.unit`.
+   *
+   * Non-null, which is a promise this module keeps rather than one NADAC
+   * makes: the column is absentable and the snapshot carries it as
+   * `string | null`. An entry without a unit never reaches the index at all
+   * (see `buildPriceIndex`), so a price that exists here always has one.
+   */
+  unit: string;
 };
 
 export interface PriceIndex {
@@ -56,6 +61,11 @@ export class IncompleteSnapshotError extends Error {
   }
 }
 
+/** A snapshot entry that carries the unit `Price.unit` requires. */
+type PricedEntry = PriceEntry & { unit: string };
+
+const hasUnit = (entry: PriceEntry): entry is PricedEntry => entry.unit !== null;
+
 export function buildPriceIndex(snapshot: Snapshot): PriceIndex {
   if (!snapshot.manifest.complete) {
     throw new IncompleteSnapshotError(
@@ -66,8 +76,20 @@ export function buildPriceIndex(snapshot: Snapshot): PriceIndex {
 
   // A Map, built once. The snapshot is ~32,500 entries; a linear scan per NDC
   // against a drug's 401 packages would be 13M comparisons per request.
-  const byNdc = new Map<string, PriceEntry>(
-    snapshot.latestByNdc.map((e) => [e.ndc, e]),
+  //
+  // **A unit-less entry is dropped here, not at read time.** `Price.unit` is
+  // `String!`, and ui-spec §9 renders every price with its unit — a figure
+  // whose unit is unknown is not a price this app may state, so it becomes the
+  // same absence as no NADAC record. Filtering at build is what keeps
+  // `forNdc` and `coverage` from disagreeing: were this a check inside
+  // `forNdc`, `coverage` would still count the entry and the page would claim
+  // "priced 3 of 14" while rendering two prices.
+  //
+  // Measured 2026-09-16: 2500 rows sampled across the 1,118,109-row dataset
+  // carry a unit, so this is expected to drop nothing. It is a guard against a
+  // column that upstream types as absentable, not a routine filter.
+  const byNdc = new Map<string, PricedEntry>(
+    snapshot.latestByNdc.filter(hasUnit).map((e) => [e.ndc, e]),
   );
   const { asOf } = snapshot.manifest;
 
