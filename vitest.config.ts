@@ -40,6 +40,23 @@ export default defineConfig({
           setupFiles: [path.join(dirname, "vitest.setup.ts")],
           include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.ts"],
           testTimeout: 30_000,
+          /**
+           * Without this, `makeExecutableSchema(...)` and `graphql(...)` are
+           * looking at two different `graphql` modules and every `instanceof`
+           * between them fails: *"Cannot use GraphQLSchema from another module
+           * or realm."*
+           *
+           * graphql@17 ships a CJS and an ESM build of the same package. A test
+           * file is transformed by Vite and imports the `.mjs`; `@graphql-tools/*`
+           * is externalised by default and `require`s the `.js`. Inlining puts
+           * both through Vite, so one instance exists.
+           *
+           * `resolve.dedupe` does **not** fix this — it collapses duplicate
+           * *copies*, and there is only ever one copy here, in two formats.
+           *
+           * `tests/graphql-execution.test.ts` fails without this line.
+           */
+          server: { deps: { inline: [/@graphql-tools\//] } },
         },
       },
       {
