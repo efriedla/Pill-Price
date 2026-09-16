@@ -39,18 +39,16 @@ never an absent one, which is a settled fact and gets a plain statement instead
 | **Pill Sort** | SVG puzzle | Tap a bottle to pick up its top pills, tap another to drop them. Keyboard: left/right choose, Enter picks up and drops, U undoes. |
 
 **Neither can be embedded here.** GitHub sanitizes HTML in markdown, so no
-script, iframe or interactive canvas survives a README. To play them:
+script, iframe or interactive canvas survives a README. Both are playable here,
+with the source for each:
+
+### ▶ [Play Pill Shot and Pill Sort](https://efriedla.github.io/demos/)
+
+Or run them from a checkout:
 
 ```bash
 npm run storybook     # then open UI/PillShotLoader or UI/PillSortLoader
 ```
-
-Storybook is also published on every push to `main`, so they can be opened
-without a checkout:
-**[Pill Shot](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillshotloader--loading)**
-·
-**[Pill Sort](https://efriedla.github.io/Pill-Price/?path=/story/ui-pillsortloader--loading)**
-([workflow](.github/workflows/storybook-pages.yml)).
 
 Both honour `prefers-reduced-motion`. Pill Sort's pills carry an imprint as well
 as two tones, so they are separable without colour, and every board it offers is
