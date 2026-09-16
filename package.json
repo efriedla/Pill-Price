@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "latest",
-    "@graphql-codegen/cli": "^7.4.0",
+    "@graphql-codegen/cli": "^7.4.1",
     "@graphql-codegen/typescript": "^6.1.0",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
