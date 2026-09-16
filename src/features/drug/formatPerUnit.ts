@@ -56,6 +56,49 @@ function increment(digits: string): string {
   return `1${out.join("")}`;
 }
 
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * Render an ISO-8601 calendar date the way ui-spec §9 writes it: `Aug 12, 2026`.
+ *
+ * **Parsed by parts, never through `Date`.** `new Date("2026-03-18")` is
+ * midnight *UTC*, so formatting it in any timezone west of Greenwich yields
+ * "Mar 17" — the price would carry the wrong effective date for most of the
+ * United States, which is this app's entire audience. NADAC's `effective_date`
+ * is a calendar date with no time and no zone; treating it as an instant is the
+ * error, and there is nothing to convert.
+ *
+ * Month names are a fixed table rather than `Intl`, because §9 is a copy rule
+ * with one spelling, not a localization requirement.
+ *
+ * Anything that is not an ISO calendar date is returned untouched, for the same
+ * reason `roundDecimalString` echoes: inventing a date is worse than showing an
+ * unexpected one.
+ */
+export function formatIsoDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+
+  const [, year, month, day] = match;
+  const name = MONTHS[Number(month) - 1];
+  if (!name) return value;
+
+  return `${name} ${Number(day)}, ${year}`;
+}
+
 /**
  * Renders a NADAC figure with its unit, per ui-spec §9. Never returns a bare
  * number: a price without its unit and date is not a fact this app may state.
@@ -69,5 +112,5 @@ export function formatPerUnit(drug: DrugSummary): string {
   if (!price) {
     return "No NADAC record";
   }
-  return `$${roundDecimalString(price.pricePerUnit)} per unit · as of ${price.effectiveDate}`;
+  return `$${roundDecimalString(price.pricePerUnit)} per unit · as of ${formatIsoDate(price.effectiveDate)}`;
 }
