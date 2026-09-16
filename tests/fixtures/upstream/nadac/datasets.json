@@ -874,7 +874,7 @@
   "identifier": "fbb83258-11c7-47f5-8b18-5f8e79f7e704",
   "description": "National Average Drug Acquisition Cost (NADAC) weekly reference data for the calendar year.",
   "accessLevel": "public",
-  "modified": "2026-08-18T11:22:01+00:00",
+  "modified": "2026-09-15T11:29:01+00:00",
   "license": "https://www.usa.gov/publicdomain/label/1.0/",
   "publisher": {
    "identifier": "4f3cccad-4fcd-5411-9d07-c23ed9e20068",
@@ -901,22 +901,22 @@
   ],
   "distribution": [
    {
-    "identifier": "b391aa55-d8f1-5894-be06-ea28d64a4186",
+    "identifier": "214a8711-40fc-5d81-839b-8d7b4ba539ed",
     "data": {
      "@type": "dcat:Distribution",
      "format": "csv",
-     "downloadURL": "https://download.medicaid.gov/data/nadac-national-average-drug-acquisition-cost-08-19-2026.csv",
+     "downloadURL": "https://download.medicaid.gov/data/nadac-national-average-drug-acquisition-cost-09-16-2026.csv",
      "describedBy": "https://data.medicaid.gov/api/1/metastore/schemas/data-dictionary/items/de58d5ec-4515-494e-ae3f-620200f72989",
      "describedByType": "application/vnd.tableschema+json",
      "%Ref:downloadURL": [
       {
-       "identifier": "083690381723fa1fca93873a7932692a__1787052105__source",
+       "identifier": "8078b5d74b2099a30ee7c8b75d2fccf7__1789471858__source",
        "data": {
-        "filePath": "https://download.medicaid.gov/data/nadac-national-average-drug-acquisition-cost-08-19-2026.csv",
-        "identifier": "083690381723fa1fca93873a7932692a",
+        "filePath": "https://download.medicaid.gov/data/nadac-national-average-drug-acquisition-cost-09-16-2026.csv",
+        "identifier": "8078b5d74b2099a30ee7c8b75d2fccf7",
         "mimeType": "text/csv",
         "perspective": "source",
-        "version": "1787052105",
+        "version": "1789471858",
         "checksum": null
        }
       }
@@ -930,6 +930,6 @@
   "programCode": [
    "009:076"
   ],
-  "%modified": "2026-08-19T18:17:17-0400"
+  "%modified": "2026-09-15T07:30:57-0400"
  }
 ]
