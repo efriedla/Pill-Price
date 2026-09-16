@@ -178,6 +178,24 @@ describe("ADR-010's taxonomy, as a client receives it", () => {
   });
 });
 
+describe("priceHistory, which has no resolver yet", () => {
+  it("comes back null instead of taking the whole drug with it", async () => {
+    // This is the regression the nullability change exists for. As
+    // `PriceSeries!` the missing resolver produced "Cannot return null for
+    // non-nullable field Drug.priceHistory" and propagated up until `drug`
+    // itself was null — one unimplemented field killed the page.
+    const res = await run(
+      `{ drug(rxcui:"860975"){ rxcui name priceHistory { range unit } } }`,
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      rxcui: "860975",
+      name: drug.name,
+      priceHistory: null,
+    });
+  });
+});
+
 describe("prices before the first snapshot job has run", () => {
   it("reports no price rather than failing", async () => {
     // `prices: null` is a legitimate cold start, and ADR-009 makes an absent
