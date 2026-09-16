@@ -1,5 +1,5 @@
 /**
- * Pill Shot — illustration palette.
+ * Loading-game illustration palette — shared by every mini game.
  *
  * These are NOT design tokens, and deliberately live outside
  * `src/lib/tokens.css`. ADR-002's token layer is a semantic system for the
@@ -21,9 +21,10 @@
  *     declared by path in `eslint.config.mjs`. The component itself stays
  *     under the rule, so a stray hex in game logic still fails the build.
  *
- * If the game ships to users, this exemption wants ratifying in ADR-002 (or in
- * ADR-005, which owns the boundary the game renders into) rather than resting
- * on this comment.
+ * If the games ship to users, this exemption wants ratifying in ADR-002 (or in
+ * ADR-005, which owns the boundary they render into) rather than resting on
+ * this comment. It is deliberately ONE file for all of them: a second exempt
+ * palette would widen the hole every time someone adds a game.
  */
 
 /** A two-tone capsule. `stroke` null means the capsule is drawn unoutlined. */
@@ -96,4 +97,42 @@ export const SURFACE = {
   white: "#fff",
   backdropTop: "#F7F8FA",
   backdropBottom: "#ECEFF3",
+} as const;
+
+/**
+ * Sort-puzzle capsules.
+ *
+ * Each carries an imprint as well as two tones, so the pills are
+ * distinguishable **without relying on colour** — the puzzle is unplayable for
+ * a colour-blind reader otherwise, and hue is never the sole carrier of meaning
+ * anywhere else in this app either (ui-spec §13).
+ *
+ * `name` is the accessible name read out by the live region, so it has to
+ * describe the pill rather than label a swatch.
+ */
+export type SortPill = {
+  readonly name: string;
+  readonly a: string;
+  readonly b: string;
+  readonly mark: string;
+};
+
+export const SORT_PILLS: readonly SortPill[] = [
+  { name: "yellow and red", a: "#FFC845", b: "#BE1931", mark: "5" },
+  { name: "pink and teal", a: "#F7A1B0", b: "#3FA9A0", mark: "10" },
+  { name: "white and blue", a: "#FFFFFF", b: "#4C7BE0", mark: "20" },
+  { name: "lavender and purple", a: "#DCCFFB", b: "#7B5CD6", mark: "40" },
+  { name: "white and green", a: "#F4F4F4", b: "#3DAA6B", mark: "50" },
+  { name: "grey and navy", a: "#C9D2DB", b: INK, mark: "80" },
+];
+
+/** Sort-puzzle bottle chrome, which differs from the Pill Shot bottle. */
+export const SORT_BOTTLE = {
+  back: "rgba(224,138,54,0.30)",
+  front: "rgba(251,186,99,0.26)",
+  stroke: "#E0913F",
+  strokeInvalid: "#D64545",
+  rim: "#F2A248",
+  rimShadow: "#C9742A",
+  shine: "rgba(255,255,255,0.4)",
 } as const;
