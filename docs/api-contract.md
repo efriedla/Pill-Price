@@ -47,7 +47,7 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 
 | Field | Source | Freshness | Failure mode |
 | --- | --- | --- | --- |
-| `drug(rxcui: ID!): Drug` | RxNorm `/rxcui/{id}/properties.json` | cached, TTL TBD — RxNorm concepts are effectively immutable, so this should be the longest TTL in the app | **`null` is a legitimate result and must be distinguished from an error.** Unknown RxCUIs return **HTTP 200 with `{}`** (§1.1) — there is no status-code signal. A Zod schema modelling `properties` as optional parses `{}` happily; the absence has to be asserted, not fallen into. Note `rxcuistatus.json` breaks the pattern: **HTTP 404 with the plain-text body `Not found`** (§1.2). Calling `res.json()` on that path throws `SyntaxError`, and §1.2 names it the single most likely source of an unhandled 500 in the BFF. |
+| `drug(rxcui: ID!): Drug` | RxNorm `/rxcui/{id}/properties.json` | cached, one week (`cachedDrugProperties`) — RxNorm concepts change on a monthly release cycle, so a week sits comfortably inside their real freshness. Decided by [ADR-010](adr/010-upstream-error-taxonomy.md) and implemented in `src/server/cached.ts` | **`null` is a legitimate result and must be distinguished from an error.** Unknown RxCUIs return **HTTP 200 with `{}`** (§1.1) — there is no status-code signal. A Zod schema modelling `properties` as optional parses `{}` happily; the absence has to be asserted, not fallen into. Note `rxcuistatus.json` breaks the pattern: **HTTP 404 with the plain-text body `Not found`** (§1.2). Calling `res.json()` on that path throws `SyntaxError`, and §1.2 names it the single most likely source of an unhandled 500 in the BFF. |
 | `search(term: String!): [Drug!]!` | RxNorm `/drugs.json?name=` | **per-request, uncached** (roadmap W2) | Non-null list; empty is the empty state, never an error. `drugGroup.name` is `null` on *every* response, populated or not (§1.3) — it is not an emptiness signal. **No typo tolerance:** `metfromin` returns *merbromin* at rank 1 with metformin absent from the top 10 (§1.5). Whether to build it is **Q8, open**. |
 
 ## `Drug`
@@ -62,7 +62,7 @@ Measurements: `docs/upstream-notes.md` §1–3, plus ADR-009's Measurements sect
 | `price: Price` | NADAC snapshot | **snapshot (weekly)** | Nullable, and **null is the typical case** — ~92% of packages have no published price (§3.3). Not an error, not a loading state, and under a snapshot not a cache miss either: the table is complete, so `null` means "nothing is published," full stop. |
 | `priceHistory(range): PriceSeries!` | NADAC snapshot | **snapshot (weekly)** | **Non-null series, possibly empty `points`.** The series always resolves so `coverage` can be reported; the *points* may be absent. Note this is the field that needs full history (~102 MB) rather than the ~3 MB latest-price table — ADR-009 flags the retention shape as a decision the sync job will force. |
 | `alternatives(kind): [Drug!]!` | RxNorm `/rxcui/{id}/allrelated.json` | as `drug` | Non-null. **Q7 closed: the four dispensable product concepts — `SCD`, `SBD`, `GPCK`, `BPCK`.** Packs count: a GPCK/BPCK is a box a prescription can actually be filled with. Everything else `allrelated` returns (`IN`, `BN`, `DF`, `DFG`, `SCDC`, `SCDF`, `SCDG`, `SBDC`, `SBDF`, `SBDG`) is excluded — none is dispensable, and each would render as a Drug with a permanently null price and an `absent` label. The queried concept is dropped from its own list. **Note this set is identical to `LABEL_QUERYABLE_TTYS`**, so ADR-010's TTY assertion can never throw on an alternative; `tests/tty-mapping.test.ts` fails if they diverge. `conceptGroup` entries may have **no `conceptProperties` key at all** (`{"tty":"BPCK"}`); without a Zod `.optional()` this is a parse failure on a valid response (§1.3). |
-| `label: Label` | openFDA | cached, TTL TBD — `meta.last_updated` was one day stale when sampled | Nullable. **The ambiguity here is Q3, open, and it changes every resolver.** A label-less drug and a malformed query are **byte-identical 404s** (§2.1). Mapping 404 → partial-data notice silently swallows BFF query bugs in production. |
+| `label: Label` | openFDA | cached, one week (`cachedLabels`) — matching ADR-009's price TTL so the page has a single freshness story. `meta.last_updated` was one day stale when sampled. Caching a 404 is deliberate: the entry expires, so a drug that 404s recovers unaided within seven days rather than being skip-listed forever | Nullable. **Q3 is closed** by [ADR-010](adr/010-upstream-error-taxonomy.md). A label-less drug and a malformed query are still **byte-identical 404s** (§2.1), so the 404 is not disambiguated after the fact — every way *we* can provoke one is eliminated *before* the request: the TTY guard (`assertLabelQueryableTty`) and the CI-verified field list (`OPENFDA_QUERIED_FIELDS`). With both ruled out, a 404 has one meaning left and maps to `Absent`, naming openFDA as the source. |
 
 ## `Package`
 
@@ -150,7 +150,6 @@ ordinary traffic, not only by a fault injection.
 | Q | Question | Blocks |
 | --- | --- | --- |
 | Q2 | Which of the SPLs is `Label`? | `Label.openFDALabel`, `LABEL_PAGE_SIZE` |
-| Q3 | Is an openFDA 404 partial or fatal? | The whole degradation table |
 | Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
 | Q8 | Does search tolerate typos? | `search` |
 
@@ -178,6 +177,17 @@ decision.
 ingredient (`IN`) and dose form (`DF`) are **not** alternatives but are not
 discarded either: they are the drug's own identity and belong in their own
 fields on `Drug`. **That SDL change is still owed.**
+
+**Q3 is closed** (2026-09-16) by [ADR-010](adr/010-upstream-error-taxonomy.md),
+and the answer is neither "partial" nor "fatal" as the question assumed. openFDA's
+404 is never *interpreted*; it is made unambiguous before it can happen. Two guards
+run ahead of the request — the TTY assertion (openFDA answers only for `SCD`, `SBD`,
+`GPCK`, `BPCK`, measured) and `OPENFDA_QUERIED_FIELDS`, checked against the live API
+in CI by `npm run check:openfda-fields`. Those are the only two ways we can provoke
+a 404 ourselves, so once both are eliminated a 404 means *this drug has no label*,
+and it maps to ADR-010's `Absent` with openFDA named as the source. Asking with the
+wrong TTY throws instead of degrading: rendering `absent` there would be a lie,
+because we never asked. Implemented in `src/server/openfda-client.ts`.
 
 **Q5 and Q1 are both closed** by [ADR-009](adr/009-nadac-on-the-request-path.md)
 and folded in above.

@@ -54,12 +54,12 @@ Non-negotiable. These are what convert "a repo exists" into "I can defend this."
 **Delegate:** Next.js App Router scaffold, TS strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`, Tailwind + token layer, Storybook, GitHub Actions (lint / typecheck / test / build, all required), PR template, CODEOWNERS, Dependabot, `eslint-plugin-boundaries` config.
 
 **Definition of done:**
-- [ ] CI is green and **blocks merge** on failure — verify by opening a deliberately failing PR
-- [ ] `tsc --noEmit` passes with strict flags; zero `any` in `src/`
-- [ ] 4 primitives (Button, Input, Card, Skeleton) in Storybook with controls + a11y addon
-- [ ] Boundaries lint rule actually rejects a cross-layer import (prove it with a test commit)
-- [ ] ADR-001/002/003 merged
-- [ ] `CONTRIBUTING.md` good enough that a stranger could open a PR
+- [x] CI is green and **blocks merge** on failure — proved by PR #7, opened deliberately red and closed unmerged
+- [x] `tsc --noEmit` passes with `strict` + `noUncheckedIndexedAccess`; zero `any` in `src/`
+- [x] 4 primitives (Button, Input, Card, Skeleton) in Storybook with controls + a11y addon
+- [x] Boundaries lint rule actually rejects a cross-layer import — `tests/boundaries.test.ts`, 17 cases
+- [x] ADR-001/002/003 merged — all three accepted 2026-08-25
+- [x] `CONTRIBUTING.md` good enough that a stranger could open a PR
 
 ---
 
@@ -79,11 +79,11 @@ This is the week that carries the most interview weight. Spend the focused hours
 - Zod validation at every upstream boundary — upstream JSON is untrusted input
 
 **Definition of done:**
-- [ ] `api-contract.md` published: every field, its source, its freshness, its failure mode
-- [ ] Schema is codegen'd into typed hooks; no hand-written response types
+- [x] `api-contract.md` published: every field, its source, its freshness, its failure mode — [`docs/api-contract.md`](api-contract.md); the last two `TTL TBD` cells closed 2026-09-16
+- [ ] Schema is codegen'd into typed hooks; no hand-written response types — **codegen runs and `codegen:check` is green, but nothing imports `src/lib/gql/types.generated.ts` yet and `DrugSummary` is still hand-written. Not done.**
 - [x] Kill one upstream in MSW → app degrades gracefully, no crash, user sees why — `tests/kill-one-upstream.test.ts`, 9 cases
 - [x] p95 BFF response for a cached drug < 200ms (measure it, record it) — **22 ms**, recorded in [`docs/performance.md`](performance.md)
-- [ ] ADR-004 (BFF + schema design) merged
+- [x] ADR-004 (BFF + schema design) merged — accepted 2026-08-25
 
 ---
 
