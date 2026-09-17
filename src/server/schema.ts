@@ -14,12 +14,12 @@ import { resolvers } from "./resolvers";
  * which cannot be written when prices are only addressable from the root.
  *
  * Resolvers live in `./resolvers` and are real as of #36 — identity, packages,
- * price, alternatives and label all resolve. The one field with no resolver
- * behind it is `Drug.priceHistory`, and it is nullable for exactly that reason;
- * see the comment on the field. Nothing here invents a price: ADR-004 settles
- * this schema but deliberately leaves the data path downstream of it
- * (docs/upstream-notes.md §5 Q5), and a stub that invented one would read as a
- * working feature.
+ * price, alternatives and label all resolve. `Drug.priceHistory` resolves too,
+ * but to a stated absence rather than to data: no store behind it can build a
+ * series yet. See the comment on the field. Nothing here invents a price:
+ * ADR-004 settles this schema but deliberately leaves the data path downstream
+ * of it (docs/upstream-notes.md §5 Q5), and a stub that invented one would
+ * read as a working feature.
  */
 
 export const typeDefs = /* GraphQL */ `
@@ -146,6 +146,18 @@ export const typeDefs = /* GraphQL */ `
 
   union AlternativesResult = Alternatives | Absent | Unavailable
 
+  # The third degradable field, and the only one whose absence is about this
+  # side rather than an upstream. NADAC does publish history; we do not store
+  # it — the snapshot holds one current price per NDC (~3 MB) where a series
+  # needs ~102 MB, and ADR-009 leaves that retention shape open.
+  #
+  # So the interim answer is Unavailable with retryable: false, and the two
+  # halves of that are both load-bearing. Absent would be a claim about NADAC
+  # that is false. retryable: true would offer a retry that cannot succeed —
+  # ADR-010 says an Absent dressed as pending is a settled fact with a
+  # spinner on it, and this is the same error in the other direction.
+  union PriceSeriesResult = PriceSeries | Absent | Unavailable
+
   type Drug {
     rxcui: ID!
     name: String!
@@ -153,28 +165,27 @@ export const typeDefs = /* GraphQL */ `
     isGeneric: Boolean!
     packages: [Package!]!
     price: Price
-    # Nullable, and that was a correction rather than a preference. As a
-    # non-null with no resolver behind it, selecting this field did not
-    # degrade it — the non-null propagated up and drug itself came back null,
-    # so one unimplemented field killed the whole page. Measured 2026-09-16:
-    # "Cannot return null for non-nullable field Drug.priceHistory."
+    # Non-null again, but for the opposite reason it was non-null before.
+    # As PriceSeries! with no resolver it took the page down: the non-null
+    # propagated up and drug itself came back null (measured 2026-09-16,
+    # "Cannot return null for non-nullable field Drug.priceHistory"). It was
+    # made nullable to stop that, and null was always the honest interim
+    # rather than the destination — a bare null cannot say whether history is
+    # missing because nothing was published or because this side never stored
+    # it, and ADR-010 exists to rule out exactly that silence.
     #
-    # Null here means the series could not be built, which today is always:
-    # the snapshot stores one current price per NDC (~3 MB), and a series
-    # needs full history (~102 MB). ADR-009 flags that retention shape as a
-    # decision the sync job will force, and it is still open.
+    # PriceSeriesResult! is safe where PriceSeries! was not: the union always
+    # has a member to return, so the field can promise a value without
+    # promising a series. The absence is now stated, in the same shape as
+    # label and alternatives.
     #
-    # This is a knowingly weaker answer than the rest of the schema gives.
-    # ADR-010 states an absence rather than rendering nothing, and a bare null
-    # cannot say whether history is missing because nothing was published or
-    # because this side never stored it. The ADR-010-shaped answer is a
-    # PriceSeriesResult union alongside LabelResult and AlternativesResult.
-    # Null is the honest interim: it stops the field from taking the page down
-    # without inventing a reason it does not have.
+    # It resolves to Unavailable until ADR-009's retention decision lands.
+    # When it does resolve to a series, the series always carries coverage,
+    # and its points may be empty.
     #
     # (No backticks in this block: the SDL lives in a template literal, and a
     # backtick here ends the string. Every gate caught it, loudly.)
-    priceHistory(range: PriceRange! = YEAR): PriceSeries
+    priceHistory(range: PriceRange! = YEAR): PriceSeriesResult!
     alternatives(kind: AlternativeKind): AlternativesResult! # Q7 closed: SCD, SBD, GPCK, BPCK — see src/server/tty.ts
     label: LabelResult!
   }
