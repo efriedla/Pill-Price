@@ -57,6 +57,53 @@ const dataset = {
   source: "pinned" as const,
 };
 
+/**
+ * The captured metastore index with one synthetic entry appended, standing in
+ * for the year NADAC has not published yet.
+ *
+ * Derived from the real fixture rather than captured separately, so a
+ * re-capture (as in #43) cannot leave a hand-built 2027 file behind to drift.
+ * The identifiers are the only invented part: a new dataset is a fresh UUIDv4
+ * and a fresh UUIDv5 distribution, neither derivable from 2026's.
+ */
+function indexWithYear(year: number): unknown {
+  const items = load("nadac/datasets.json") as {
+    title: string;
+    identifier: string;
+    distribution: { identifier: string }[];
+  }[];
+  const previous = items.find((item) => item.title.endsWith(String(year - 1)));
+  if (!previous) throw new Error(`fixture has no ${year - 1} dataset to clone`);
+
+  return [
+    ...items,
+    {
+      ...previous,
+      title: previous.title.replace(String(year - 1), String(year)),
+      identifier: `0000${year}00-0000-4000-8000-000000000000`,
+      distribution: [
+        { ...previous.distribution[0], identifier: `0000${year}00-0000-5000-8000-000000000000` },
+      ],
+    },
+  ];
+}
+
+/** A fetch stub whose pinned-dataset probe succeeds, as a live-but-old pin does. */
+function stubLivePin(routes: { match: string; status?: number; body?: unknown }[]): {
+  fetchJson: FetchJson;
+  metastoreCalls: () => number;
+} {
+  let metastoreCalls = 0;
+  const inner = stubFetch([{ match: NADAC_DATASET_ID }, ...routes]);
+  return {
+    fetchJson: async (url) => {
+      if (url.includes("metastore")) metastoreCalls += 1;
+      return inner(url);
+    },
+    metastoreCalls: () => metastoreCalls,
+  };
+}
+
 describe("dataset resolution (ADR-009 primary/fallback)", () => {
   it("uses the pinned dataset ID without touching the metastore", async () => {
     let metastoreCalls = 0;
@@ -106,6 +153,96 @@ describe("dataset resolution (ADR-009 primary/fallback)", () => {
         NOW,
       ),
     ).rejects.toThrow(/cannot resolve a dataset/i);
+  });
+});
+
+describe("the annual rollover, across the year boundary", () => {
+  // ADR-009 commits to exercising this path before January. Everything above
+  // runs at NOW (August 2026), where the pinned year is the current year and
+  // the interesting branches are unreachable.
+  const JANUARY = new Date("2027-01-06T12:00:00Z");
+  const MARCH = new Date("2027-03-03T12:00:00Z");
+
+  it("keeps using the pinned dataset in January, before the new year is published", async () => {
+    // Not a fault, and deliberately not an alert. NADAC publishes the new
+    // year's dataset some weeks into January; until it exists, last year's
+    // final weekly file is the most current acquisition cost there is.
+    const { fetchJson, metastoreCalls } = stubLivePin([
+      { match: "metastore", body: load("nadac/datasets.json") },
+    ]);
+
+    const resolved = await resolveDataset(fetchJson, JANUARY);
+
+    expect(resolved).toMatchObject({
+      datasetId: NADAC_DATASET_ID,
+      year: NADAC_DATASET_YEAR,
+      source: "pinned",
+    });
+    expect(resolved.alert).toBeUndefined();
+    // The check itself is not free — it is the one time of year the index is
+    // fetched on a *working* pin.
+    expect(metastoreCalls()).toBe(1);
+  });
+
+  it("switches to the new year once NADAC publishes it, even though the pin still answers", async () => {
+    // The failure this exists to prevent. A rolled-over dataset ID does not
+    // die — ADR-009 finding 6 measured the 2013–2021 datasets still answering
+    // under their original identifiers — so the 400 the fallback was written
+    // around never arrives, and the job would snapshot 2026 forever while
+    // reporting itself healthy.
+    const { fetchJson } = stubLivePin([
+      { match: "metastore", body: indexWithYear(2027) },
+    ]);
+
+    const resolved = await resolveDataset(fetchJson, MARCH);
+
+    expect(resolved.source).toBe("rediscovered");
+    expect(resolved.year).toBe(2027);
+    expect(resolved.datasetId).not.toBe(NADAC_DATASET_ID);
+    expect(resolved.alert).toContain("a year behind");
+    expect(resolved.alert).toContain("NADAC_DATASET_ID");
+  });
+
+  it("does not touch the metastore in the eleven months the pin is current", async () => {
+    // The cost of the check above, bounded. This is the assertion that keeps
+    // the 1.16 MB index off the weekly path for the rest of the year.
+    const { fetchJson, metastoreCalls } = stubLivePin([
+      { match: "metastore", body: indexWithYear(2027) },
+    ]);
+
+    const resolved = await resolveDataset(fetchJson, NOW);
+
+    expect(resolved.source).toBe("pinned");
+    expect(metastoreCalls()).toBe(0);
+  });
+
+  it("snapshots the live pin rather than nothing when the rollover check cannot run", async () => {
+    // The pinned dataset answered, so there is real data. Refusing to run
+    // would trade a possibly-stale year for certainly no prices.
+    const { fetchJson } = stubLivePin([{ match: "metastore", status: 503 }]);
+
+    const resolved = await resolveDataset(fetchJson, MARCH);
+
+    expect(resolved).toMatchObject({
+      datasetId: NADAC_DATASET_ID,
+      source: "pinned",
+    });
+    // But an unanswered check is not a passed one.
+    expect(resolved.alert).toContain("could not be checked");
+  });
+
+  it("carries the year-behind alert into the manifest a human reads", async () => {
+    // The alert is only worth anything if it survives into the snapshot.
+    const { fetchJson } = stubLivePin([
+      { match: "metastore", body: indexWithYear(2027) },
+    ]);
+    const resolved = await resolveDataset(fetchJson, MARCH);
+
+    const snapshot = buildSnapshot([row()], 1, resolved, MARCH);
+
+    expect(snapshot.manifest.datasetYear).toBe(2027);
+    expect(snapshot.manifest.datasetSource).toBe("rediscovered");
+    expect(snapshot.manifest.alert).toContain("a year behind");
   });
 });
 
