@@ -331,6 +331,37 @@ is ever fetched.
 > rule 3 puts that with the author of the decision — accepting a fix and
 > accepting a change of mind should not be the same click.
 
+> **Amendment, 2026-09-17 (second) — the fallback had never worked, and the
+> live rehearsal is what found it.** `npm run rehearse:rollover` exercises this
+> path against the real API: it forces a real 404 from a dataset ID that does
+> not exist, rediscovers through the live metastore, and then **queries what was
+> resolved.** That last step failed.
+>
+> DKAN has two query endpoints. A **dataset** is addressed as
+> `datastore/query/{datasetId}/{index}`; a **distribution** is addressed as
+> `datastore/query/{distributionId}`, with no index. Crossing them 404s. The
+> fallback resolves a *distribution* — the decision above says so — but the
+> caller built the dataset URL around it, so rediscovery succeeded and every
+> subsequent page 404'd. The rollover path would have failed the first time it
+> ran, in January, having passed every test we had.
+>
+> The fixture tests could not catch it: they stub the query layer, so the URL
+> they build is never sent anywhere. That is the boundary between the two kinds
+> of evidence, and it is the argument for the rehearsal existing at all — the
+> fixture proves we branch correctly, the rehearsal proves the upstream still
+> looks the way the fixture claims.
+>
+> `ResolvedDataset.index` is now `number | null`, where null means "this is a
+> distribution, address it directly". Unit tests pin both URL shapes and the
+> crossing, so the live script is not the only thing standing between this and
+> a repeat.
+>
+> The rehearsal is **not in CI**, deliberately: it depends on a third party
+> being up, and a weekly red build on someone else's outage teaches people to
+> ignore the build. It is a command to run before January, and again in
+> January — where check 7 stops being a formality and becomes the thing that
+> reports the new dataset has appeared.
+
 **What is stored for a miss — nothing.** Under a snapshot there is no such thing
 as a cache miss: the local table is complete, so an NDC absent from it is a
 published fact ("no acquisition cost for this package"), not an unknown. This is
@@ -368,7 +399,9 @@ is the only defence against a dead *job*, though not against a dead dataset: see
 the amendment above, which is what the "exercise the rollover path before
 January" commitment turned up. The dataset ID is configuration, not a constant,
 and so is the **year** it refers to — they are updated together, and the year is
-what makes a rollover detectable in time. `docs/api-contract.md`'s ⛔ rows can now be written.
+what makes a rollover detectable in time. The rollover path itself is
+**exercised** as of 2026-09-17, against the live API, by
+`npm run rehearse:rollover` — which is how both amendments above got written. `docs/api-contract.md`'s ⛔ rows can now be written.
 
 ## Revisit if
 

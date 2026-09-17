@@ -4,7 +4,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { NADAC_DATASET_ID, NADAC_DATASET_YEAR } from "@/server/nadac/config";
-import { resolveDataset, type FetchJson } from "@/server/nadac/distribution";
+import {
+  datasetQueryUrl,
+  resolveDataset,
+  type FetchJson,
+} from "@/server/nadac/distribution";
 import {
   buildSnapshot,
   fetchAllRows,
@@ -156,6 +160,64 @@ describe("dataset resolution (ADR-009 primary/fallback)", () => {
   });
 });
 
+describe("query URLs (DKAN's two endpoints are not interchangeable)", () => {
+  // Measured against the live API on 2026-09-17, by the rehearsal script:
+  //   datastore/query/{datasetId}/{index}  200
+  //   datastore/query/{distributionId}     200
+  //   datastore/query/{distributionId}/0   404 "No resource found for dataset
+  //                                            … at index 0"
+  // The fallback resolves a *distribution*, so it is the second form or
+  // nothing — and it had been building the third.
+  it("addresses a dataset with its distribution index", () => {
+    expect(datasetQueryUrl("dataset-id", 0)).toMatch(/\/query\/dataset-id\/0$/);
+  });
+
+  it("addresses a distribution with no index at all", () => {
+    expect(datasetQueryUrl("distribution-id", null)).toMatch(
+      /\/query\/distribution-id$/,
+    );
+  });
+
+  it("gives the rediscovered distribution a URL that has no index", async () => {
+    // The regression that shipped: `index: 0` on a rediscovered distribution
+    // 404s every page, so the rollover fallback resolved successfully and then
+    // failed on the first request — the one combination the fixture-only tests
+    // could not see, because they stub the query layer.
+    const resolved = await resolveDataset(
+      stubFetch([
+        { match: NADAC_DATASET_ID, status: 400 },
+        { match: "metastore", body: load("nadac/datasets.json") },
+      ]),
+      NOW,
+    );
+
+    expect(resolved.index).toBeNull();
+    expect(datasetQueryUrl(resolved.datasetId, resolved.index)).toBe(
+      `https://data.medicaid.gov/api/1/datastore/query/${resolved.datasetId}`,
+    );
+  });
+
+  it("pages a rediscovered distribution off the indexless URL", async () => {
+    // End of the same thread: what `fetchAllRows` actually requests.
+    const urls: string[] = [];
+    const resolved = await resolveDataset(
+      stubFetch([
+        { match: NADAC_DATASET_ID, status: 400 },
+        { match: "metastore", body: load("nadac/datasets.json") },
+      ]),
+      NOW,
+    );
+
+    await fetchAllRows(async (url) => {
+      urls.push(url);
+      return { ok: true, status: 200, json: async () => ({ results: [], count: 0 }) };
+    }, resolved);
+
+    expect(urls[0]).toContain(`/query/${resolved.datasetId}?`);
+    expect(urls[0]).not.toContain(`/${resolved.datasetId}/0`);
+  });
+});
+
 describe("the annual rollover, across the year boundary", () => {
   // ADR-009 commits to exercising this path before January. Everything above
   // runs at NOW (August 2026), where the pinned year is the current year and
@@ -201,6 +263,8 @@ describe("the annual rollover, across the year boundary", () => {
     expect(resolved.datasetId).not.toBe(NADAC_DATASET_ID);
     expect(resolved.alert).toContain("a year behind");
     expect(resolved.alert).toContain("NADAC_DATASET_ID");
+    // A distribution, so no index — the same correction as the dead-pin path.
+    expect(resolved.index).toBeNull();
   });
 
   it("does not touch the metastore in the eleven months the pin is current", async () => {

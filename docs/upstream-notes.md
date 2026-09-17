@@ -193,6 +193,30 @@ NADAC is published as **one dataset per calendar year**, each with its own UUID:
 > and the title-matching contract below from the normal path entirely — they
 > survive only as the **annual** rollover fallback. See ADR-009 finding 6.
 
+> **Third correction, 2026-09-17 — the two query endpoints are not
+> interchangeable, and the rollover fallback was using the wrong one.** Measured
+> live by `npm run rehearse:rollover`:
+>
+> | URL | Result |
+> | --- | --- |
+> | `datastore/query/{datasetId}/{index}` | 200 |
+> | `datastore/query/{distributionId}` | 200, 1,118,109 rows |
+> | `datastore/query/{distributionId}/{index}` | **404** `No resource found for dataset … at index 0` |
+>
+> A **dataset** is addressed with a distribution index; a **distribution** is
+> addressed on its own, with no index. The correction above is right that the
+> fallback resolves a distribution ID — but the code then built the third URL,
+> so the rollover path resolved successfully and 404'd on its first page. It had
+> never been run end to end, which is exactly what ADR-009 asked for and what
+> the fixture tests could not show, because they stub the query layer.
+>
+> Two refinements from the same run. **Dataset IDs are not all UUIDv4:**
+> 2013–2021 are **v5**, 2022–2026 are **v4**, which is finding 6's claim stated
+> precisely. And an old dataset ID **does not die** — the 2013 dataset
+> (`1fe73992-cbfd-5109-97bc-dee8b33fdcff`) still returns HTTP 200 today, which
+> is why a 400/404 from the pinned ID cannot be the rollover signal on its own.
+> The 2026 dataset now holds **1,118,109** rows.
+
 Hard-coding the 2026 UUID means the app silently serves stale prices from
 2027-01-01. Resolving it requires the metastore index at
 `/api/1/metastore/schemas/dataset/items`, which is **1.1 MB** and returns all 549
@@ -334,6 +358,11 @@ were first run. `$DATASET` is the pinned per-year dataset ID from §3.1.
 ```sh
 DATASET=fbb83258-11c7-47f5-8b18-5f8e79f7e704
 BASE=https://data.medicaid.gov/api/1
+
+# Rehearse the whole rollover path against the live API — nine checks,
+# six requests, including a forced 404 and the indexless distribution URL.
+# Run it again in January; it is what reports that the new dataset exists.
+npm run rehearse:rollover
 
 # Resolve the dataset ID by title. Only needed at year rollover (§3.1).
 # NOTE: show-reference-ids is required — without it, distribution[].identifier
