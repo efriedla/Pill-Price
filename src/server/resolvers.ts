@@ -4,7 +4,13 @@ import type { GraphQLContext } from "./context";
 import { UpstreamUnavailableError } from "./http";
 import { isLabelQueryableTty } from "./openfda-client";
 import { searchDrugs } from "./rxnorm-client";
-import { isGenericTty, selectAlternatives, type AlternativeKind } from "./tty";
+import {
+  isGenericTty,
+  selectAlternatives,
+  selectDoseForm,
+  selectIngredients,
+  type AlternativeKind,
+} from "./tty";
 import type { ConceptProperties } from "./upstream/rxnorm.schema";
 
 /**
@@ -80,6 +86,8 @@ export const resolvers = {
   LabelResult: { __resolveType: resolveDegradable("Label") },
   AlternativesResult: { __resolveType: resolveDegradable("Alternatives") },
   PriceSeriesResult: { __resolveType: resolveDegradable("PriceSeries") },
+  IngredientsResult: { __resolveType: resolveDegradable("Ingredients") },
+  DoseFormResult: { __resolveType: resolveDegradable("DoseForm") },
 
   Query: {
     /**
@@ -203,6 +211,59 @@ export const resolvers = {
           error,
           "RxNorm",
           "We could not reach RxNorm for alternatives to this drug.",
+        );
+      }
+    },
+
+    /**
+     * Q7's other half: the ingredients, from the same related-concept call
+     * `alternatives` reads. Sharing `ctx.loaders.related` is what keeps the two
+     * identity fields free — one request answers all three.
+     *
+     * Plural on purpose. A combination product returns several IN concepts, and
+     * a singular field would drop half of such a drug's identity silently.
+     *
+     * Never an empty Ingredients, for the reason `alternatives` is never an
+     * empty Alternatives: an empty list and "RxNorm named none" are two
+     * encodings of one fact, and a client renders the first as nothing.
+     */
+    ingredients: async (drug: DrugSource, _: unknown, ctx: GraphQLContext) => {
+      try {
+        const groups = await ctx.loaders.related.load(drug.rxcui);
+        const concepts = selectIngredients(groups);
+        return concepts.length > 0
+          ? { ingredients: concepts }
+          : absent("RxNorm names no ingredient for this drug.", "RxNorm");
+      } catch (error) {
+        return degrade(
+          error,
+          "RxNorm",
+          "We could not reach RxNorm for this drug's ingredients.",
+        );
+      }
+    },
+
+    /**
+     * The dose form, or a stated absence.
+     *
+     * **A pack reaching `Absent` here is the ordinary path, not a failure.** A
+     * GPCK or BPCK is a box of several products — a contraceptive cycle, a
+     * steroid taper — and has no single dose form to name. The sentence says
+     * that rather than leaving a reader to read a blank as an outage, which is
+     * the whole of ADR-010 in one field.
+     */
+    doseForm: async (drug: DrugSource, _: unknown, ctx: GraphQLContext) => {
+      try {
+        const groups = await ctx.loaders.related.load(drug.rxcui);
+        return (
+          selectDoseForm(groups) ??
+          absent("RxNorm names no dose form for this drug.", "RxNorm")
+        );
+      } catch (error) {
+        return degrade(
+          error,
+          "RxNorm",
+          "We could not reach RxNorm for this drug's dose form.",
         );
       }
     },

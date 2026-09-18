@@ -8,6 +8,8 @@ import {
   isAlternativeTty,
   isGenericTty,
   selectAlternatives,
+  selectDoseForm,
+  selectIngredients,
   ttysForKind,
 } from "@/server/tty";
 import type { ConceptProperties } from "@/server/upstream/rxnorm.schema";
@@ -116,5 +118,67 @@ describe("every alternative is a drug openFDA can answer for", () => {
     expect([...ALTERNATIVE_TTYS].sort()).toEqual(
       [...LABEL_QUERYABLE_TTYS].sort(),
     );
+  });
+});
+
+/**
+ * Q7's other half: the concepts excluded from `alternatives` are not discarded,
+ * they are identity. These assert the selectors read the same groups without
+ * borrowing each other's rules.
+ */
+describe("identity, as distinct from alternatives", () => {
+  it("reads the ingredient out of the same related groups", () => {
+    expect(selectIngredients(ATORVASTATIN_GROUPS)).toEqual([
+      expect.objectContaining({ rxcui: "83367", name: "atorvastatin", tty: "IN" }),
+    ]);
+  });
+
+  it("reads the dose form, and never the dose form *group*", () => {
+    // DFG ("Oral Product") sits next to DF ("Oral Tablet") in every response
+    // and is a coarser concept. Matching on a prefix would take whichever came
+    // first and be right about half the time.
+    expect(selectDoseForm(ATORVASTATIN_GROUPS)).toEqual(
+      expect.objectContaining({ rxcui: "317541", name: "Oral Tablet", tty: "DF" }),
+    );
+  });
+
+  it("returns every ingredient of a combination product", () => {
+    // The case a singular field would silently halve.
+    const groups = [
+      {
+        tty: "IN",
+        concepts: [
+          concept("17767", "amlodipine", "IN"),
+          concept("18867", "benazepril", "IN"),
+        ],
+      },
+    ];
+    expect(selectIngredients(groups).map((c) => c.name)).toEqual([
+      "amlodipine",
+      "benazepril",
+    ]);
+  });
+
+  it("reports no dose form for a pack, rather than inventing one", () => {
+    // A BPCK is a box of several products. Null here is the ordinary answer,
+    // and the resolver states it as an Absent.
+    const pack = [
+      { tty: "BPCK", concepts: [concept("749783", "Medrol Dosepak", "BPCK")] },
+      { tty: "IN", concepts: [concept("6902", "methylprednisolone", "IN")] },
+    ];
+    expect(selectDoseForm(pack)).toBeNull();
+    expect(selectIngredients(pack)).toHaveLength(1);
+  });
+
+  it("keeps identity and alternatives from leaking into each other", () => {
+    // The regression that matters: if either selector ever reuses
+    // ALTERNATIVE_TTYS, atorvastatin's SCD/SBD would arrive as ingredients.
+    const ingredientTtys = new Set(
+      selectIngredients(ATORVASTATIN_GROUPS).map((c) => c.tty),
+    );
+    expect([...ingredientTtys]).toEqual(["IN"]);
+    for (const alt of selectAlternatives(ATORVASTATIN_GROUPS, "ALL")) {
+      expect(isAlternativeTty(alt.tty)).toBe(true);
+    }
   });
 });

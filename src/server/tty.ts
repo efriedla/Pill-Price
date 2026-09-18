@@ -27,8 +27,9 @@ import type { ConceptProperties } from "./upstream/rxnorm.schema";
  * NADAC nor openFDA has anything to say about a dose form.
  *
  * The ingredient and the dose form are not discarded — they are *identity*
- * rather than alternatives, and belong in their own fields on `Drug`. That SDL
- * change is the author's to write (roadmap rule 3); it is owed, not done.
+ * rather than alternatives, and they now have their own fields on `Drug`:
+ * `Drug.ingredients` and `Drug.doseForm`, read by `selectIngredients` and
+ * `selectDoseForm` below from these same groups.
  */
 
 /**
@@ -95,4 +96,55 @@ export function selectAlternatives(
     .filter((g) => admitted.includes(g.tty))
     .flatMap((g) => g.concepts)
     .filter((c) => c.rxcui !== self);
+}
+
+/**
+ * The identity TTYs: what the drug *is*, as opposed to what could be handed
+ * over instead of it.
+ *
+ * Q7 excluded these from `ALTERNATIVE_TTYS` and then declined to discard them,
+ * because "Oral Tablet" is not an alternative to your pill but it is certainly
+ * part of what your pill is. They come back from the same `allrelated.json`
+ * call, so reading them costs nothing beyond the request already made.
+ */
+export const INGREDIENT_TTY = "IN";
+export const DOSE_FORM_TTY = "DF";
+
+/**
+ * A drug's ingredients, from the same related-concept groups `alternatives`
+ * reads.
+ *
+ * A list, not a single concept: a combination product returns several IN
+ * concepts (amlodipine / benazepril returns two), and a singular field would
+ * drop half of such a drug's identity without saying it had.
+ */
+export function selectIngredients(
+  groups: readonly { tty: string; concepts: ConceptProperties[] }[],
+): ConceptProperties[] {
+  return groups
+    .filter((g) => g.tty === INGREDIENT_TTY)
+    .flatMap((g) => g.concepts);
+}
+
+/**
+ * A drug's dose form, or `null` when RxNorm names none.
+ *
+ * `null` is the ordinary answer for a pack, not a failure: a GPCK or BPCK is a
+ * box of several products and has no single dose form. Callers state that as
+ * an `Absent`, never as a blank.
+ *
+ * Singular where ingredients are plural, and the first concept wins if RxNorm
+ * ever returns more than one — a dispensable product has exactly one dose form
+ * by construction, so a second would be an upstream surprise rather than a
+ * shape this app should model.
+ */
+export function selectDoseForm(
+  groups: readonly { tty: string; concepts: ConceptProperties[] }[],
+): ConceptProperties | null {
+  for (const group of groups) {
+    if (group.tty === DOSE_FORM_TTY && group.concepts.length > 0) {
+      return group.concepts[0] ?? null;
+    }
+  }
+  return null;
 }
