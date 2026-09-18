@@ -293,6 +293,44 @@ alerts. That reduces the fragile title-matching contract from a weekly
 dependency to an annual one, and it is the only path on which the 1.16 MB index
 is ever fetched.
 
+> **Amendment, 2026-09-17 — the 400 is not the rollover signal, and on its own
+> it never fires.** Writing the test this ADR committed to ("the annual-rollover
+> path has to be exercised at least once before January") showed the trigger
+> above is the wrong one, for a reason already in this document.
+>
+> Finding 6, as corrected, measured that the 2013–2021 datasets **still answer
+> under the identifiers they were minted with** — that is the evidence the pin
+> rests on. The same fact says the 2026 identifier will keep returning HTTP 200
+> through 2027 and beyond. **The 400 that was supposed to announce the rollover
+> therefore never arrives.** The job would go on snapshotting the 2026 dataset
+> with `source: "pinned"` and no alert, serving prices frozen at the last 2026
+> weekly file.
+>
+> Nothing else catches it. `Price.asOf` and the 14-day staleness notice both
+> measure **when the job ran**, not which year it read, so a healthy weekly job
+> on a dead dataset looks perfectly fresh — the failure mode is invisible in
+> exactly the place this ADR put its only defence.
+>
+> The fix is to make the calendar a second trigger: when `NADAC_DATASET_YEAR`
+> falls behind the current year, the job fetches the index and asks whether the
+> new year's dataset exists, **even though the pin still answers.** If it does,
+> it switches and alerts as on the dead-pin path. If it does not — ordinary
+> early January, before NADAC publishes — the pin is used unchanged and nothing
+> alerts, because last year's final file is the most current acquisition cost
+> that exists and an alert nobody can act on is one nobody reads.
+>
+> The cost stays annual, as the decision above intends: the index is fetched on
+> a working pin only in the weeks between January 1 and the new dataset
+> appearing. For the other eleven months the normal path is unchanged and never
+> touches the metastore.
+>
+> **This amendment is the decision only; the implementation is PR #52**, where
+> `tests/nadac-snapshot.test.ts` covers both sides of the boundary and four of
+> its five new cases fail against the pre-amendment code. They are separate
+> because this changes a decision rather than recording a measurement, and
+> rule 3 puts that with the author of the decision — accepting a fix and
+> accepting a change of mind should not be the same click.
+
 **What is stored for a miss — nothing.** Under a snapshot there is no such thing
 as a cache miss: the local table is complete, so an NDC absent from it is a
 published fact ("no acquisition cost for this package"), not an unknown. This is
@@ -326,9 +364,11 @@ means keeping ~102 MB rather than the ~3 MB a latest-price table needs, and that
 is a second decision the sync job's shape will force.
 
 **Committed to.** `Price.asOf` is now load-bearing rather than informational — it
-is the only defence against a dead job. The dataset ID is configuration, not a
-constant, and the annual-rollover path has to be exercised at least once before
-January. `docs/api-contract.md`'s ⛔ rows can now be written.
+is the only defence against a dead *job*, though not against a dead dataset: see
+the amendment above, which is what the "exercise the rollover path before
+January" commitment turned up. The dataset ID is configuration, not a constant,
+and so is the **year** it refers to — they are updated together, and the year is
+what makes a rollover detectable in time. `docs/api-contract.md`'s ⛔ rows can now be written.
 
 ## Revisit if
 

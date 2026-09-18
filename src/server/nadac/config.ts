@@ -23,16 +23,35 @@ import "server-only";
  * 2013–2021 datasets still carry the IDs they had when last modified in 2021 —
  * across three distribution rotations in ten days.
  *
- * The fallback below is still what handles the case this pinning cannot cover:
- * the **annual rollover**, when the next year's dataset is minted with a new v4
- * ID. On a 400/404 the job re-resolves by title, pins, and alerts, so a wrong
- * assumption surfaces as an alert rather than as bad data.
+ * The fallback in `distribution.ts` is still what handles the case this
+ * pinning cannot cover: the **annual rollover**, when the next year's dataset
+ * is minted with a new v4 ID. It fires on two signals, and the second was
+ * missing until 2026-09-17:
+ *
+ * - a **400/404** from the pinned ID, and
+ * - `NADAC_DATASET_YEAR` falling behind the calendar year.
+ *
+ * The year check is the one that actually arrives. The measurement above cuts
+ * both ways: if the 2013–2021 datasets still answer under their original IDs,
+ * then so will this one in 2027 — the 400 never comes, and a job keyed only to
+ * it would snapshot 2026 forever while reporting itself healthy. `asOf` does
+ * not catch that, because it records when the job ran, not what year it read.
+ *
+ * **So this constant and the ID are a pair, and both need updating at
+ * rollover.** A wrong ID surfaces as an alert; a wrong year surfaces as
+ * silently frozen prices.
  */
 
 /** 2026. Verified live 2026-08-26 (1,028,250 rows) and again 2026-09-02. */
 export const NADAC_DATASET_ID = "fbb83258-11c7-47f5-8b18-5f8e79f7e704";
 
-/** The year `NADAC_DATASET_ID` refers to, so a rollover is detectable. */
+/**
+ * The year `NADAC_DATASET_ID` refers to.
+ *
+ * Load-bearing, not documentation: this is what makes a rollover detectable
+ * before the pinned ID stops working, which it may never do. Update it in the
+ * same commit as the ID.
+ */
 export const NADAC_DATASET_YEAR = 2026;
 
 /** Distribution index within the dataset. NADAC publishes exactly one. */
