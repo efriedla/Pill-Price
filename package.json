@@ -14,6 +14,7 @@
     "codegen": "graphql-codegen",
     "snapshot:nadac": "tsx --conditions=react-server scripts/snapshot-nadac.ts",
     "check:openfda-fields": "tsx --conditions=react-server scripts/check-openfda-fields.ts",
+    "rehearse:rollover": "tsx --conditions=react-server scripts/rehearse-nadac-rollover.ts",
     "codegen:check": "graphql-codegen --check",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",

@@ -26,7 +26,13 @@ export type DatasetSource = "pinned" | "rediscovered";
 export interface ResolvedDataset {
   datasetId: string;
   year: number;
-  index: number;
+  /**
+   * The distribution index within the dataset, or **null when `datasetId` is
+   * itself a distribution identifier** — which is what the rollover fallback
+   * resolves. The two take different URLs and there is no index to pass in the
+   * second case; see `datasetQueryUrl`.
+   */
+  index: number | null;
   source: DatasetSource;
   /**
    * Non-empty means **the pin in `config.ts` is stale and a human has to
@@ -41,11 +47,29 @@ export interface ResolvedDataset {
   alert?: string;
 }
 
+/**
+ * The query URL for a resolved identifier.
+ *
+ * DKAN has **two query endpoints, and they are not interchangeable** (measured
+ * against the live API, 2026-09-17):
+ *
+ *   datastore/query/{datasetId}/{index}   200 — a dataset plus which of its
+ *                                               distributions to read
+ *   datastore/query/{distributionId}      200 — a distribution, addressed
+ *                                               directly, with no index
+ *
+ * Crossing them 404s: `datastore/query/{distributionId}/0` returns
+ * `No resource found for dataset … at index 0`. That is the shape of the bug
+ * this signature exists to make unwritable — the normal path pins a *dataset*
+ * ID while the rollover fallback resolves a *distribution* ID, so the caller
+ * cannot assume either, and `index: null` is how the second says so.
+ */
 export function datasetQueryUrl(
   datasetId: string,
-  index: number = NADAC_DISTRIBUTION_INDEX,
+  index: number | null = NADAC_DISTRIBUTION_INDEX,
 ): string {
-  return `${NADAC_BASE_URL}/datastore/query/${datasetId}/${index}`;
+  const base = `${NADAC_BASE_URL}/datastore/query/${datasetId}`;
+  return index === null ? base : `${base}/${index}`;
 }
 
 /** Fetch signature, narrowed so tests can substitute without a network. */
@@ -137,7 +161,9 @@ export async function resolveDataset(
     // now unknown is the dataset ID behind it, which is why this alerts.
     datasetId: resolved.distributionId,
     year: resolved.year,
-    index: NADAC_DISTRIBUTION_INDEX,
+    // A distribution is addressed without an index. Passing 0 here 404s every
+    // page — measured 2026-09-17, and the reason this field is nullable.
+    index: null,
     source: "rediscovered",
     alert:
       `NADAC dataset pin is stale: ${NADAC_DATASET_ID} (${NADAC_DATASET_YEAR}) returned HTTP ${probe.status}. ` +
@@ -197,7 +223,8 @@ async function resolveOvertakenPin(
     // The *distribution* ID, current as of this fetch — see the dead-pin path.
     datasetId: resolved.distributionId,
     year: resolved.year,
-    index: NADAC_DISTRIBUTION_INDEX,
+    // No index on a distribution — see `datasetQueryUrl`.
+    index: null,
     source: "rediscovered",
     alert:
       `NADAC dataset pin is a year behind: ${NADAC_DATASET_ID} is the ${NADAC_DATASET_YEAR} dataset and it still answers, ` +
