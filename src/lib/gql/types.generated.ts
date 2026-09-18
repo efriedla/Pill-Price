@@ -33,9 +33,19 @@ export type Coverage = {
   totalPackages: Scalars['Int']['output'];
 };
 
+export type DoseForm = {
+  __typename: 'DoseForm';
+  name: Scalars['String']['output'];
+  rxcui: Scalars['ID']['output'];
+};
+
+export type DoseFormResult = Absent | DoseForm | Unavailable;
+
 export type Drug = {
   __typename: 'Drug';
   alternatives: AlternativesResult;
+  doseForm: DoseFormResult;
+  ingredients: IngredientsResult;
   isGeneric: Scalars['Boolean']['output'];
   label: LabelResult;
   name: Scalars['String']['output'];
@@ -60,6 +70,19 @@ export type Granularity =
   | 'MONTHLY'
   | 'QUARTERLY'
   | 'WEEKLY';
+
+export type Ingredient = {
+  __typename: 'Ingredient';
+  name: Scalars['String']['output'];
+  rxcui: Scalars['ID']['output'];
+};
+
+export type Ingredients = {
+  __typename: 'Ingredients';
+  ingredients: Array<Ingredient>;
+};
+
+export type IngredientsResult = Absent | Ingredients | Unavailable;
 
 export type Label = {
   __typename: 'Label';

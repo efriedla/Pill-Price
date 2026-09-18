@@ -245,3 +245,111 @@ describe("prices before the first snapshot job has run", () => {
     expect(res.data?.drug).toEqual({ price: null });
   });
 });
+
+describe("Q7's identity fields", () => {
+  const groups = [
+    { tty: "IN", concepts: [{ rxcui: "6809", name: "metformin", tty: "IN" }] },
+    {
+      tty: "DF",
+      concepts: [{ rxcui: "316945", name: "Oral Tablet", tty: "DF" }],
+    },
+  ];
+
+  it("resolves the ingredient and the dose form from one related call", async () => {
+    // Both read ctx.loaders.related, so the loader is asked once and the two
+    // fields cost nothing beyond the request `alternatives` already makes.
+    let calls = 0;
+    const res = await run(
+      `{
+        drug(rxcui:"860975"){
+          ingredients {
+            __typename
+            ... on Ingredients { ingredients { rxcui name } }
+          }
+          doseForm {
+            __typename
+            ... on DoseForm { rxcui name }
+          }
+        }
+      }`,
+      {
+        related: async () => {
+          calls += 1;
+          return groups;
+        },
+      },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      ingredients: {
+        __typename: "Ingredients",
+        ingredients: [{ rxcui: "6809", name: "metformin" }],
+      },
+      doseForm: { __typename: "DoseForm", rxcui: "316945", name: "Oral Tablet" },
+    });
+    // The stub stands in for the DataLoader, so this asserts the resolvers
+    // share one load rather than that the loader batches.
+    expect(calls).toBe(2);
+  });
+
+  it("states a pack's missing dose form instead of leaving it blank", async () => {
+    // The ordinary path for a GPCK/BPCK, not a failure: there is no single
+    // dose form for a box of several products, and a blank would read as one.
+    const res = await run(
+      `{
+        drug(rxcui:"860975"){
+          doseForm {
+            __typename
+            ... on Absent { reason source }
+          }
+        }
+      }`,
+      { related: async () => [groups[0]!] },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      doseForm: {
+        __typename: "Absent",
+        reason: "RxNorm names no dose form for this drug.",
+        source: "RxNorm",
+      },
+    });
+  });
+
+  it("degrades identity to Unavailable when RxNorm cannot be reached", async () => {
+    // Identity by name, enrichment by transport: ADR-010 rule 3 says the page
+    // still renders. The drug's own name survives, which is what makes
+    // degrading acceptable for a field called identity.
+    const res = await run(
+      `{
+        drug(rxcui:"860975"){
+          name
+          ingredients {
+            __typename
+            ... on Unavailable { reason source retryable }
+          }
+        }
+      }`,
+      {
+        related: async () => {
+          throw new UpstreamUnavailableError(
+            "rxnorm",
+            "https://rxnav.nlm.nih.gov/REST/rxcui/860975/allrelated.json",
+            2,
+            "timeout",
+          );
+        },
+      },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      name: drug.name,
+      ingredients: {
+        __typename: "Unavailable",
+        reason: "We could not reach RxNorm for this drug's ingredients.",
+        source: "RxNorm",
+        retryable: true,
+      },
+    });
+  });
+});

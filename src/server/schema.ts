@@ -158,6 +158,37 @@ export const typeDefs = /* GraphQL */ `
   # spinner on it, and this is the same error in the other direction.
   union PriceSeriesResult = PriceSeries | Absent | Unavailable
 
+  # Q7's other half. The ingredient and the dose form are not alternatives —
+  # "Oral Tablet" is not something you could be given instead of your pill —
+  # but they are not nothing either: they are what the drug *is*.
+  #
+  # Deliberately not Drug. That is Q7's actual finding: an IN or DF rendered as
+  # a Drug carries a permanently null price and a permanently absent label,
+  # because neither NADAC nor openFDA has anything to say about "atorvastatin"
+  # or "Oral Tablet". These types promise only what RxNorm knows.
+  type Ingredient {
+    rxcui: ID!
+    name: String! # e.g. "atorvastatin"
+  }
+
+  type DoseForm {
+    rxcui: ID!
+    name: String! # e.g. "Oral Tablet"
+  }
+
+  # A list, not a single value: a combination product has several ingredients
+  # (amlodipine / benazepril returns two IN concepts). One is the common case,
+  # not the guaranteed one.
+  #
+  # Absent means RxNorm answered and named none, so this list is never empty —
+  # the same rule as Alternatives, for the same reason.
+  type Ingredients {
+    ingredients: [Ingredient!]!
+  }
+
+  union IngredientsResult = Ingredients | Absent | Unavailable
+  union DoseFormResult = DoseForm | Absent | Unavailable
+
   type Drug {
     rxcui: ID!
     name: String!
@@ -187,6 +218,18 @@ export const typeDefs = /* GraphQL */ `
     # backtick here ends the string. Every gate caught it, loudly.)
     priceHistory(range: PriceRange! = YEAR): PriceSeriesResult!
     alternatives(kind: AlternativeKind): AlternativesResult! # Q7 closed: SCD, SBD, GPCK, BPCK — see src/server/tty.ts
+    # Identity, but fetched from the same allrelated.json call as alternatives,
+    # so it degrades the same way — ADR-010 rule 3: enrichment is always
+    # partial. Both read ctx.loaders.related, so the three fields cost one
+    # request between them, not three.
+    #
+    # The name already contains the ingredient ("atorvastatin 10 MG Oral
+    # Tablet"), so a reader loses nothing they cannot see when RxNorm is down.
+    # That is what makes degrading acceptable for a field called identity.
+    ingredients: IngredientsResult!
+    # Absent is the ordinary case for a pack, not a gap: a GPCK or BPCK is a
+    # box of several products and has no single dose form. The copy says so.
+    doseForm: DoseFormResult!
     label: LabelResult!
   }
 
