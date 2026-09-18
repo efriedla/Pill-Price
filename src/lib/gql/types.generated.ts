@@ -41,7 +41,7 @@ export type Drug = {
   name: Scalars['String']['output'];
   packages: Array<Package>;
   price?: Maybe<Price>;
-  priceHistory?: Maybe<PriceSeries>;
+  priceHistory: PriceSeriesResult;
   rxcui: Scalars['ID']['output'];
   tty: Scalars['String']['output'];
 };
@@ -106,6 +106,8 @@ export type PriceSeries = {
   range: PriceRange;
   unit: Scalars['String']['output'];
 };
+
+export type PriceSeriesResult = Absent | PriceSeries | Unavailable;
 
 export type Query = {
   __typename: 'Query';

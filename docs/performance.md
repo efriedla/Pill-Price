@@ -85,9 +85,11 @@ a 32,500-entry Map would blow the whole budget on its own if built per request.
 - **One machine, one afternoon, localhost.** Per ADR-009's correction, treat
   every figure as a floor. A deployed environment adds network, cold lambdas and
   a shared cache that this does not measure.
-- **`priceHistory` is not in the query, because it is not implemented.** It needs
-  the ~102 MB of history the snapshot does not hold — the retention decision
-  ADR-009 flags as one the sync job will force.
+- **`priceHistory` is not in the query, because there is no series to measure.**
+  It resolves — to `Unavailable`, at no upstream cost — but the data behind it
+  needs the ~102 MB of history the snapshot does not hold, the retention
+  decision ADR-009 flags as one the sync job will force. The figures here will
+  not survive that landing: measure again when a series can be built.
 - **`label` resolves to a `__typename` only**, because Q2 is deferred: openFDA
   returns up to 91 SPLs from 55 labelers for one drug and which of them `Label`
   names is unanswered. The openFDA *request* is made and cached, so its cost is

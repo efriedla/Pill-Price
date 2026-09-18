@@ -34,11 +34,19 @@ type DrugSource = ConceptProperties;
  */
 const absent = (reason: string, source: string) => ({ reason, source });
 
-/** ADR-010's `Unavailable`: we could not ask, or the answer never came. */
-const unavailable = (reason: string, source: string) => ({
+/**
+ * ADR-010's `Unavailable`: we could not ask, or the answer never came.
+ *
+ * `retryable` defaults to true because that is what a transport failure is —
+ * but it is a parameter, not a constant. `priceHistory` is the case that needs
+ * the other value: we cannot ask, and no number of retries changes that until
+ * the store exists. Offering a retry that cannot succeed is the same error as
+ * showing an `Absent` with a spinner on it, in the other direction.
+ */
+const unavailable = (reason: string, source: string, retryable = true) => ({
   reason,
   source,
-  retryable: true,
+  retryable,
 });
 
 /**
@@ -71,6 +79,7 @@ export const resolvers = {
    */
   LabelResult: { __resolveType: resolveDegradable("Label") },
   AlternativesResult: { __resolveType: resolveDegradable("Alternatives") },
+  PriceSeriesResult: { __resolveType: resolveDegradable("PriceSeries") },
 
   Query: {
     /**
@@ -133,6 +142,32 @@ export const resolvers = {
         Number(a.pricePerUnit) <= Number(b.pricePerUnit) ? a : b,
       );
     },
+
+    /**
+     * The price series — which this side cannot build, and says so.
+     *
+     * This is the one degradable field whose absence is not about an upstream.
+     * NADAC publishes the history; the snapshot does not keep it. It holds one
+     * current price per NDC (~3 MB) where a series needs the full ~102 MB, and
+     * ADR-009 flags that retention shape as a decision the sync job forces.
+     * Until it lands there is nothing to query, so the honest answer is that
+     * we could not ask — not that NADAC came up empty, which would be a claim
+     * about NADAC that is false.
+     *
+     * `retryable: false` for the same reason: a retry cannot succeed against a
+     * store that does not exist. `range` is accepted and ignored, because the
+     * argument is part of the settled contract (ADR-004) and a series that
+     * echoes what it was asked is the shape this returns once it resolves.
+     *
+     * No stub series, deliberately. Invented points would render as a working
+     * chart, which is the failure ADR-010 and the schema header both rule out.
+     */
+    priceHistory: () =>
+      unavailable(
+        "We do not store price history for this drug yet.",
+        "NADAC",
+        false,
+      ),
 
     /**
      * Q7's answer applied: the four dispensable product concepts, with the

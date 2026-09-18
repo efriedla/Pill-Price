@@ -178,21 +178,59 @@ describe("ADR-010's taxonomy, as a client receives it", () => {
   });
 });
 
-describe("priceHistory, which has no resolver yet", () => {
-  it("comes back null instead of taking the whole drug with it", async () => {
-    // This is the regression the nullability change exists for. As
-    // `PriceSeries!` the missing resolver produced "Cannot return null for
-    // non-nullable field Drug.priceHistory" and propagated up until `drug`
-    // itself was null — one unimplemented field killed the page.
-    const res = await run(
-      `{ drug(rxcui:"860975"){ rxcui name priceHistory { range unit } } }`,
-    );
+describe("priceHistory, which has no store behind it yet", () => {
+  it("states that we cannot build the series, and does not offer a retry", async () => {
+    // The field is `PriceSeriesResult!` again after a spell as a nullable
+    // `PriceSeries`. Non-null is safe here where `PriceSeries!` was not: the
+    // union always has a member to return, so nothing propagates up and takes
+    // `drug` with it (measured 2026-09-16, "Cannot return null for
+    // non-nullable field Drug.priceHistory").
+    const res = await run(`{
+      drug(rxcui:"860975"){
+        rxcui
+        name
+        priceHistory {
+          __typename
+          ... on Unavailable { reason source retryable }
+          ... on Absent { reason source }
+          ... on PriceSeries { range unit }
+        }
+      }
+    }`);
     expect(res.errors).toBeUndefined();
     expect(res.data?.drug).toEqual({
       rxcui: "860975",
       name: drug.name,
-      priceHistory: null,
+      priceHistory: {
+        __typename: "Unavailable",
+        reason: "We do not store price history for this drug yet.",
+        source: "NADAC",
+        // Not retryable, and this is the assertion that matters: a retry
+        // against a store that does not exist cannot succeed, and ADR-010
+        // reads a retry affordance as a promise that it can.
+        retryable: false,
+      },
     });
+  });
+
+  it("is not Absent, which would be a false claim about NADAC", async () => {
+    // NADAC does publish the history. The gap is ours, so `Absent` — "the
+    // source answered, and its answer was nothing" — would attribute our
+    // retention decision to them.
+    const res = await run(
+      `{ drug(rxcui:"860975"){ priceHistory { __typename } } }`,
+    );
+    expect(res.data?.drug).toEqual({
+      priceHistory: { __typename: "Unavailable" },
+    });
+  });
+
+  it("does not take the drug down when the range argument is given", async () => {
+    const res = await run(
+      `{ drug(rxcui:"860975"){ name priceHistory(range: MAX) { __typename } } }`,
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toMatchObject({ name: drug.name });
   });
 });
 
