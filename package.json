@@ -58,7 +58,7 @@
     "playwright": "latest",
     "storybook": "^10.5.10",
     "tailwindcss": "^4",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vite": "latest",
     "vitest": "^4.1.11"
