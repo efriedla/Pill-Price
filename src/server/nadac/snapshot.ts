@@ -45,7 +45,25 @@ export interface SnapshotManifest {
   rowsFetched: number;
   /** Distinct NDCs with a usable current price. */
   pricedNdcs: number;
-  /** Newest and oldest `effective_date` seen. */
+  /**
+   * The newest and oldest `effective_date` **in `latestByNdc`** — not in the
+   * dataset.
+   *
+   * So `earliest` is the oldest *most-recent* price of any NDC: a package that
+   * stopped being repriced and has carried the same figure since. It is not
+   * the oldest row we read, and this range is **not** the span of history the
+   * dataset holds.
+   *
+   * Reading it as a span is a mistake that has already been made once. It put
+   * ~21 months of history into ADR-012's first draft; measured directly
+   * against the rows, a yearly dataset holds ~12.5 — a dense weekly series
+   * from mid-December of the prior year, plus a sparse ~1.4% tail of older
+   * dates that cannot be charted. See ADR-012, "Correction, 2026-09-21".
+   *
+   * For how far back the data actually goes, count `effective_date` over the
+   * rows. This field answers a narrower question: how stale the stalest
+   * current price is.
+   */
   effectiveDateRange: { earliest: string; latest: string } | null;
   /**
    * False when paging did not reach `rowsReported`. **A resolver must refuse to
