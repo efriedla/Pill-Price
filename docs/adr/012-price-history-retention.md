@@ -1,11 +1,11 @@
 # ADR-012: How much price history do we keep, and where?
 
-**Status:** proposed — **options only. The decision is the author's.**
-**Date:** 2026-09-21
+**Status:** accepted
+**Date:** 2026-09-21 (options), 2026-09-21 (decided)
 
-<!-- Roadmap rule 3: the author owns schema and product decisions; this file
-     lays out what was measured and what each option costs. The Decision
-     section is deliberately unwritten. -->
+<!-- Roadmap rule 3: the author owns schema and product decisions. The options
+     below were laid out for that decision; the Decision section records what
+     was chosen. -->
 
 ## Context
 
@@ -58,6 +58,58 @@ worksheet exists to surface.** 102 MB was one year, priced at the row count of
 
 So question 1 is not a detail to settle after the engine is picked. It is the
 question that decides whether an engine is needed at all.
+
+### Correction, 2026-09-21: how much history one dataset actually holds
+
+The options below were first written with the current dataset spanning
+**2025-01-01 -> 2026-09-09**, read off the snapshot manifest's
+`effectiveDateRange`. **That reading was wrong, and it mattered** — it made the
+no-backfill window look like ~21 months.
+
+`effectiveDateRange` is computed over `latestByNdc`, not over all rows
+(`snapshot.ts`). So `earliest` does not mean "the oldest row in the dataset"; it
+means "the oldest *most-recent* price of any NDC" — a package that stopped being
+repriced in January 2025 and has carried the same figure since.
+
+Measured directly against the live 2026 dataset instead, with filtered counts:
+
+| Query | Rows |
+| --- | --- |
+| All rows | 1,118,109 |
+| `effective_date = 2025-12-17` (one weekly batch) | 60,682 |
+| `effective_date < 2025-12-17` | 15,387 |
+| `effective_date < 2025-12-01` | 15,227 (oldest seen: 2025-01-22) |
+
+And the same first-row probe on the two datasets before it: the 2025 dataset
+starts **2024-12-18**, the 2024 dataset **2023-12-20**.
+
+So **a yearly dataset holds ~12.5 months, not ~21**: a dense weekly series from
+mid-December of the prior year, plus a sparse ~15,000-row tail of older dates —
+1.4% of rows, late corrections and long-unchanged packages, not a series anyone
+can chart.
+
+The no-backfill window is therefore **the four quarters the current dataset
+covers** (2025Q4 from 12-17, then 2026 Q1-Q3), not seven.
+
+### Measured, not estimated: what a series actually encodes to
+
+The per-option figures below were arithmetic on the 99 B slim row. Encoded for
+real against the snapshot's 32,621 NDCs, with the bucket dates held once in the
+manifest and each NDC carrying a bare price array:
+
+| Series | On disk |
+| --- | --- |
+| Quarterly, 4 buckets (today's no-backfill window) | **1.6 MB** |
+| Quarterly, 8 buckets | 2.8 MB |
+| Quarterly, 12 buckets | 4.1 MB |
+| Quarterly, 20 buckets (5 years) | 6.6 MB |
+| Yearly, 14 buckets (all datasets) | 4.7 MB |
+| Monthly, 60 buckets (5 years) | 19.2 MB |
+
+Roughly **0.28 MB per quarter**. Labelling every point with its own date instead
+of sharing one axis doubles all of it — measured, not assumed. **Where these
+figures and the per-option arithmetic below disagree, these win**; the options are
+kept as the record of what was weighed.
 
 ## Options considered — Q1: how much history
 
@@ -136,11 +188,81 @@ together.
 
 ## Decision
 
-<!-- Author's. Not filled in by an agent. -->
+**Quarterly buckets, no backfill, accumulating forward, in the existing JSON
+snapshot store.**
+
+Four parts, each load-bearing:
+
+1. **Quarterly, not monthly and not yearly.** Size is not the constraint —
+   measured against the real 32,621-NDC snapshot, a quarterly series costs
+   **1.6 MB at four quarters, 2.8 MB at eight, 6.6 MB at twenty**, against
+   today's 3.9 MB latest-only file. Quarterly is the coarsest granularity that
+   still shows a price *moving*; yearly over a window this short would be three
+   or four points and would read as a trend we do not have the data to claim.
+
+2. **No backfill.** The 13 older yearly datasets are not paged. The series is
+   whatever the weekly job already reads, bucketed — so this adds no job, no
+   multi-hour one-time cost, and no new failure mode at launch. The chart opens
+   with **four quarters** and must not be framed as more.
+
+3. **Accumulating forward.** Each weekly run merges its buckets into the stored
+   series rather than replacing it, so depth grows a quarter at a time and
+   passes eight quarters within a year — without ever paging an old dataset.
+   This is what makes "no backfill" a starting position rather than a ceiling.
+
+   **A closed quarter is immutable; only the open quarter is recomputed.** The
+   stored series stops being purely derived from the current dataset the moment
+   it accumulates, which means it can carry forward a mistake — so: a run with
+   `complete: false` writes nothing (it already must not serve, per ADR-009), and
+   a closed bucket is never rewritten by a later run. Rebuilding the series from
+   scratch is then a deliberate act, not a side effect of a bad week.
+
+4. **The existing `SnapshotStore`, unchanged.** At 1.6-2.8 MB the single JSON
+   file carries this, so **Q2 does not open** and no database is added — the
+   deliverable's "no auth, no database" line holds. The engine question returns
+   only past ~20 MB, which is monthly-over-five-years or
+   quarterly-over-all-fourteen-years.
+
+**The bucket's value is the last published price in that quarter** — an actual
+NADAC figure with a real `effective_date`, not a computed one. Two reasons, and
+the second is the stronger: a median or mean over an even number of weeks
+requires arithmetic on money, and money here is a decimal string precisely
+because float arithmetic rounds it wrong; and every point on the chart stays a
+thing NADAC published on a date we can name, which is the same standard the rest
+of this app holds itself to about stating facts rather than deriving them.
+
+**Gaps stay gaps.** An NDC with no publication in a quarter has no point for
+that quarter — not zero, and not the previous quarter's price carried forward.
+`PriceSeries` must therefore allow a sparse series, and the ~15,000-row
+pre-window tail is dropped rather than charted.
 
 ## Consequences
 
-<!-- Follows the decision. -->
+**Easier.** `Drug.priceHistory` stops being permanently `Unavailable` and starts
+resolving to real data without any new infrastructure, any backfill, or any
+change below `SnapshotStore`. The reducer in `snapshot.ts` gains a second output
+alongside `latestByNdc`; nothing else in the job changes. Depth improves on its
+own with every weekly run.
+
+**Harder.** The snapshot becomes **accumulated state rather than a pure
+derivation**, which is a genuinely different thing to reason about: it can drift,
+and the immutability rule above is the only thing preventing a bad run from
+becoming permanent. That rule needs a test, not just a sentence here. The
+snapshot file also roughly doubles, which is still well inside the JSON store but
+worth watching against the ~20 MB ceiling as the series accumulates — **at
+0.28 MB per quarter, that ceiling is roughly 14 years away**, so it is a note,
+not a risk.
+
+**Committed to.** A four-quarter chart at launch, stated as such in the UI rather
+than presented as "price history" without qualification. And the pre-window tail
+is *not* history: 1.4% of rows scattered over the prior year cannot be charted,
+and reading `effectiveDateRange` as a span is the mistake the correction above
+records.
+
+**Still open, deliberately.** Where the snapshot file lives in production. That
+is unchanged by this decision — the local-filesystem problem is the same at
+1.6 MB as at 3.9 MB — and it belongs with ADR-001's hosting constraint, not
+here.
 
 ## Revisit if
 
@@ -149,3 +271,9 @@ together.
   *of*, and #11's figures are not NADAC's and must not share a series.
 - NADAC's query API gains a real index, which would make a narrow
   history-on-demand fetch viable and moot most of Q2.
+- **The accumulated series and a fresh rebuild disagree.** That is the signal the
+  immutability rule has a hole in it, and it is worth checking deliberately once
+  rather than waiting for someone to notice a wrong chart.
+- **Users ask for depth the accumulation cannot reach yet.** Backfilling older
+  yearly datasets stays available at ~5-19 minutes each and ~0.28 MB per
+  quarter; it was declined as launch scope, not ruled out.
