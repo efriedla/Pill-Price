@@ -10,10 +10,17 @@ import {
   type FetchJson,
 } from "@/server/nadac/distribution";
 import {
+  accumulateInto,
   buildSnapshot,
+  compareDecimal,
   fetchAllRows,
   isSnapshotStale,
+  openQuarter,
+  pointsOf,
+  quarterBounds,
+  quarterOf,
   toLatestByNdc,
+  toQuarterlySeries,
 } from "@/server/nadac/snapshot";
 import type { NadacRow } from "@/server/upstream/nadac.schema";
 
@@ -442,5 +449,261 @@ describe("staleness (ADR-009: 14 days, not 7)", () => {
     expect(
       isSnapshotStale({ ...manifestAt(NOW.toISOString()), asOf: "nonsense" }, NOW),
     ).toBe(true);
+  });
+});
+
+/* ADR-012 — quarterly price history. */
+
+/** A complete snapshot over `rows`, so accumulation tests read as intent. */
+const snap = (rows: NadacRow[], reported = rows.length) =>
+  buildSnapshot(rows, reported, dataset, NOW);
+
+describe("quarter keys (calendar dates, never Date objects)", () => {
+  it("puts January 1st in Q1, where a UTC parse would put it in the prior Q4", () => {
+    // `new Date("2026-01-01")` is midnight UTC — 2025-12-31 in New York. The
+    // whole point of slicing the string is that this bucket is the same for
+    // every reader.
+    expect(quarterOf("2026-01-01")).toBe("2026Q1");
+    expect(quarterOf("2025-12-31")).toBe("2025Q4");
+  });
+
+  it("splits the year on the months the calendar does", () => {
+    expect(quarterOf("2026-03-31")).toBe("2026Q1");
+    expect(quarterOf("2026-04-01")).toBe("2026Q2");
+    expect(quarterOf("2026-09-30")).toBe("2026Q3");
+    expect(quarterOf("2026-10-01")).toBe("2026Q4");
+  });
+
+  it("bounds a quarter with real calendar dates", () => {
+    expect(quarterBounds("2026Q1")).toEqual({
+      periodStart: "2026-01-01",
+      periodEnd: "2026-03-31",
+    });
+    expect(quarterBounds("2026Q4")).toEqual({
+      periodStart: "2026-10-01",
+      periodEnd: "2026-12-31",
+    });
+  });
+});
+
+describe("comparing prices without a float", () => {
+  it("orders by digits, not by Number()", () => {
+    expect(compareDecimal("8.14515", "8.1452")).toBeLessThan(0);
+    expect(compareDecimal("10.00", "9.99999")).toBeGreaterThan(0);
+    expect(compareDecimal("0.02982", "0.02982")).toBe(0);
+    expect(compareDecimal("0.3", "0.30000")).toBe(0);
+  });
+});
+
+describe("quarterly reduction (ADR-012)", () => {
+  it("takes the last published price in the quarter, not the first or an average", () => {
+    const series = toQuarterlySeries([
+      row({ effective_date: "2026-01-07", nadac_per_unit: "0.010" }),
+      row({ effective_date: "2026-03-25", nadac_per_unit: "0.030" }),
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+    ]);
+    const points = pointsOf(series, "29300038901");
+    expect(points).toHaveLength(1);
+    // 0.020 is the mean and 0.020 is the median; neither is the answer.
+    expect(points[0]!.perUnit).toBe("0.030");
+    expect(points[0]!.effectiveDate).toBe("2026-03-25");
+  });
+
+  it("counts every publication in the quarter as an observation", () => {
+    const series = toQuarterlySeries([
+      row({ effective_date: "2026-01-07", nadac_per_unit: "0.010" }),
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+      row({ effective_date: "2026-03-25", nadac_per_unit: "0.030" }),
+    ]);
+    expect(pointsOf(series, "29300038901")[0]!.observations).toBe(3);
+  });
+
+  it("leaves a quarter with no publication as a gap, not a carried-forward price", () => {
+    const series = toQuarterlySeries([
+      row({ effective_date: "2026-01-07", nadac_per_unit: "0.010" }),
+      row({ effective_date: "2026-07-08", nadac_per_unit: "0.030" }),
+    ]);
+    const quarters = pointsOf(series, "29300038901").map((p) => p.quarter);
+    expect(quarters).toEqual(["2026Q1", "2026Q3"]);
+    // Q2 is absent entirely — not a point with a null price, and not 0.010
+    // carried across.
+    expect(quarters).not.toContain("2026Q2");
+  });
+
+  it("breaks a same-date disagreement toward the lower price", () => {
+    const series = toQuarterlySeries([
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.030" }),
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+    ]);
+    expect(pointsOf(series, "29300038901")[0]!.perUnit).toBe("0.020");
+  });
+
+  it("drops a unit-less row, the same absence the price index applies", () => {
+    const series = toQuarterlySeries([
+      row({ ndc: "1", pricing_unit: null }),
+      row({ ndc: "2", pricing_unit: "EA" }),
+    ]);
+    expect(series.byNdc["1"]).toBeUndefined();
+    expect(series.byNdc["2"]!.unit).toBe("EA");
+  });
+
+  it("does not draw one line across a unit change", () => {
+    const series = toQuarterlySeries([
+      row({ effective_date: "2026-01-07", pricing_unit: "ML" }),
+      row({ effective_date: "2026-07-08", pricing_unit: "EA" }),
+    ]);
+    expect(series.byNdc["29300038901"]!.unit).toBe("EA");
+    expect(pointsOf(series, "29300038901").map((p) => p.quarter)).toEqual([
+      "2026Q3",
+    ]);
+  });
+
+  it("builds an axis of every quarter any NDC reaches", () => {
+    const series = toQuarterlySeries([
+      row({ ndc: "1", effective_date: "2025-12-17" }),
+      row({ ndc: "2", effective_date: "2026-07-08" }),
+    ]);
+    expect(series.quarters).toEqual(["2025Q4", "2026Q3"]);
+    expect(openQuarter(series)).toBe("2026Q3");
+  });
+});
+
+describe("accumulating forward (ADR-012's immutability rule)", () => {
+  const stored = snap([
+    row({ effective_date: "2025-12-17", nadac_per_unit: "0.010" }),
+    row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+  ]);
+
+  it("seeds from the fresh run when there is nothing stored", () => {
+    const fresh = snap([row({ effective_date: "2026-02-11" })]);
+    expect(accumulateInto(null, fresh)).toBe(fresh);
+  });
+
+  it("does not rewrite a closed quarter, even when the fresh run disagrees", () => {
+    // The rule the ADR says needs a test rather than a sentence. 2025Q4 is
+    // closed — the stored figure stands whatever this run says, because a
+    // disagreement here is a signal to go and look, not something to overwrite.
+    const fresh = snap([
+      row({ effective_date: "2025-12-17", nadac_per_unit: "9.999" }),
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+    ]);
+    const merged = accumulateInto(stored, fresh);
+    const points = pointsOf(merged.quarterlySeries!, "29300038901");
+    expect(points.find((p) => p.quarter === "2025Q4")!.perUnit).toBe("0.010");
+  });
+
+  it("seeds a closed quarter that was never stored — seeding is not rewriting", () => {
+    const fresh = snap([
+      row({ effective_date: "2025-08-13", nadac_per_unit: "0.005" }),
+      row({ effective_date: "2026-02-11", nadac_per_unit: "0.020" }),
+    ]);
+    const points = pointsOf(
+      accumulateInto(stored, fresh).quarterlySeries!,
+      "29300038901",
+    );
+    expect(points.find((p) => p.quarter === "2025Q3")!.perUnit).toBe("0.005");
+  });
+
+  it("recomputes the open quarter, so a newer price within it lands", () => {
+    const fresh = snap([
+      row({ effective_date: "2025-12-17", nadac_per_unit: "0.010" }),
+      row({ effective_date: "2026-03-25", nadac_per_unit: "0.033" }),
+    ]);
+    const points = pointsOf(
+      accumulateInto(stored, fresh).quarterlySeries!,
+      "29300038901",
+    );
+    expect(points.find((p) => p.quarter === "2026Q1")!.perUnit).toBe("0.033");
+  });
+
+  it("keeps the stored open-quarter point when the fresh dataset no longer reaches it", () => {
+    // The January rollover: the new yearly dataset starts mid-December, so an
+    // NDC last published in October is simply not in it. A blind replace would
+    // delete a quarter we have the real answer for.
+    const storedQ4 = snap([
+      row({ effective_date: "2026-10-07", nadac_per_unit: "0.040" }),
+    ]);
+    const fresh = snap([
+      row({ ndc: "other", effective_date: "2026-12-16", nadac_per_unit: "0.050" }),
+    ]);
+    const merged = accumulateInto(storedQ4, fresh);
+    expect(pointsOf(merged.quarterlySeries!, "29300038901")[0]!.perUnit).toBe(
+      "0.040",
+    );
+  });
+
+  it("keeps the history of an NDC that has left the dataset entirely", () => {
+    const fresh = snap([row({ ndc: "other", effective_date: "2026-02-11" })]);
+    const merged = accumulateInto(stored, fresh);
+    expect(pointsOf(merged.quarterlySeries!, "29300038901")).toHaveLength(2);
+    expect(merged.quarterlySeries!.byNdc["other"]).toBeDefined();
+  });
+
+  it("drops the stored series when the unit changes, rather than mixing scales", () => {
+    const fresh = snap([
+      row({ effective_date: "2026-02-11", pricing_unit: "ML" }),
+    ]);
+    const series = accumulateInto(stored, fresh).quarterlySeries!;
+    expect(series.byNdc["29300038901"]!.unit).toBe("ML");
+    expect(pointsOf(series, "29300038901").map((p) => p.quarter)).toEqual([
+      "2026Q1",
+    ]);
+  });
+
+  it("refuses to accumulate an incomplete run rather than writing a partial quarter", () => {
+    const partial = snap([row({ effective_date: "2026-02-11" })], 500);
+    expect(partial.manifest.complete).toBe(false);
+    expect(() => accumulateInto(stored, partial)).toThrow(/immutable/);
+  });
+
+  it("carries the fresh run's manifest — only the series accumulates", () => {
+    const fresh = snap([row({ effective_date: "2026-02-11" })]);
+    const merged = accumulateInto(stored, fresh);
+    expect(merged.manifest).toEqual(fresh.manifest);
+    expect(merged.latestByNdc).toEqual(fresh.latestByNdc);
+  });
+});
+
+describe("how the series is stored (the field names are the file)", () => {
+  const series = toQuarterlySeries([
+    row({ ndc: "a", effective_date: "2026-01-07", nadac_per_unit: "0.010" }),
+    row({ ndc: "a", effective_date: "2026-07-08", nadac_per_unit: "0.030" }),
+    row({ ndc: "b", effective_date: "2026-04-01", nadac_per_unit: "0.020" }),
+  ]);
+
+  it("lays every NDC on one shared axis", () => {
+    expect(series.quarters).toEqual(["2026Q1", "2026Q2", "2026Q3"]);
+    expect(series.byNdc["a"]!.points).toHaveLength(3);
+    expect(series.byNdc["b"]!.points).toHaveLength(3);
+  });
+
+  it("writes a quarter with no publication as null, not as a zero", () => {
+    expect(series.byNdc["a"]!.points[1]).toBeNull();
+    expect(series.byNdc["b"]!.points).toEqual([
+      null,
+      ["0.020", "2026-04-01", 1],
+      null,
+    ]);
+  });
+
+  it("expands back to named points with the gaps dropped", () => {
+    expect(pointsOf(series, "a")).toEqual([
+      {
+        quarter: "2026Q1",
+        perUnit: "0.010",
+        effectiveDate: "2026-01-07",
+        observations: 1,
+      },
+      {
+        quarter: "2026Q3",
+        perUnit: "0.030",
+        effectiveDate: "2026-07-08",
+        observations: 1,
+      },
+    ]);
+  });
+
+  it("has nothing to say about an NDC it has never seen", () => {
+    expect(pointsOf(series, "no-such-ndc")).toEqual([]);
   });
 });

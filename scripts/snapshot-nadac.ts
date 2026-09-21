@@ -12,7 +12,11 @@
  * snapshot. A stale snapshot is recoverable; a wrong one is not.
  */
 import { resolveDataset } from "../src/server/nadac/distribution";
-import { buildSnapshot, fetchAllRows } from "../src/server/nadac/snapshot";
+import {
+  accumulateInto,
+  buildSnapshot,
+  fetchAllRows,
+} from "../src/server/nadac/snapshot";
 import { createFileSnapshotStore } from "../src/server/nadac/store";
 
 const fetchJson = async (url: string) => {
@@ -50,13 +54,26 @@ async function main() {
     );
   }
 
-  await createFileSnapshotStore().write(snapshot);
+  // ADR-012: the series accumulates, so the write is read-merge-write rather
+  // than a replace. Closed quarters come from the stored file and are not
+  // recomputed — `accumulateInto` is where that rule lives.
+  const store = createFileSnapshotStore();
+  const accumulated = accumulateInto(await store.read(), snapshot);
+  await store.write(accumulated);
 
   const elapsed = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
     `\nwrote ${manifest.pricedNdcs.toLocaleString()} priced NDCs from ` +
       `${manifest.rowsFetched.toLocaleString()} rows in ${elapsed}s`,
   );
+  const series = accumulated.quarterlySeries;
+  if (series) {
+    const quarters = series.quarters;
+    console.log(
+      `price history: ${Object.keys(series.byNdc).length.toLocaleString()} NDCs over ` +
+        `${quarters.length} quarters (${quarters[0]} … ${quarters[quarters.length - 1]})`,
+    );
+  }
   if (manifest.effectiveDateRange) {
     const { earliest, latest } = manifest.effectiveDateRange;
     console.log(`effective dates ${earliest} … ${latest}`);
