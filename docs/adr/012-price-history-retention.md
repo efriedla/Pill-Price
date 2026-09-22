@@ -268,8 +268,8 @@ here.
 
 ## Amendment, 2026-09-22: the headroom is five years, not fourteen
 
-**Status:** proposed — the correction is measured; the choice it forces is the
-author's. Decision section below is deliberately empty.
+**Status:** accepted 2026-09-22 — Option A. The correction is measured; the
+choice it forced was the author's, and it was to change nothing but the number.
 
 Code-free per the amendment rule: the measurement rode with #62, but what to do
 about it changes a consequence this ADR committed to, and accepting a fix and
@@ -353,11 +353,55 @@ exists to surface, and the hosting question (still open) is entangled with it.
 
 ### Decision
 
-<!-- Yours. -->
+**Option A — change nothing; correct the number and keep the shape.**
+
+The original decision stands in full: quarterly buckets, no backfill,
+accumulating forward, in the existing JSON `SnapshotStore`, with every point
+carrying the date NADAC published it. Only the headroom figure was wrong, and
+it is wrong in a direction that changes no choice made here.
+
+Explicitly **not** taken, and why:
+
+- **B and C** trade a field for headroom. `observations` buys about six months,
+  which does not justify an SDL change; `effectiveDate` buys years but costs the
+  thing this ADR said a point *is*. Neither is worth paying now to postpone a
+  question that is already scheduled.
+- **D** (a rolling cap) is the only option that would actually cap retention,
+  and it makes the accumulation lossy — a second way for the store to stop being
+  derivable, against the one safety property the immutability rule exists to
+  protect.
+- **E** is A with a different emphasis; the scheduling of Q2 is recorded below
+  rather than treated as a separate choice.
+
+Recorded because it was asked and is worth having in writing: **nothing here
+caps how much history is kept.** The series accumulates without limit. The
+five-year figure is when the *file* stops being viable, not when data starts
+being dropped. Deep history at launch remains ADR-012 Q1 Option D — declined,
+because it needs a 14-dataset backfill and a database, and that is a scope line
+to spend deliberately rather than a consequence of a storage number.
 
 ### Consequences
 
-<!-- Written once the decision is made. -->
+**Unchanged.** Every part of the Decision above, and all of the shipped code.
+This amendment moves a date, not a design.
+
+**Q2 now has a date on it, roughly 2031.** ADR-012 part 4 already named ~20 MB
+as the trigger for reopening the storage-engine question; that trigger is about
+five years out rather than fourteen. It stays a note rather than a risk, but it
+is now a note with a decade removed from it, and it should be read alongside the
+still-open question of where the snapshot file lives in production — which will
+almost certainly force the engine question first, and sooner.
+
+**The tuple encoding is now load-bearing, not an optimisation.** At the
+named-field shape the ceiling is about two years. Any future change that widens
+`StoredPoint` back into an object, or adds a fourth field, is a storage decision
+and should be priced against this table rather than made in passing.
+
+**Backfill got more expensive to reconsider.** Accumulation and backfill draw on
+the same headroom, so paging an older yearly dataset now costs roughly a year
+off the ceiling per four quarters recovered. That does not rule it out — it means
+a future backfill decision is a storage-engine decision too, and the two should
+arrive together.
 
 ## Revisit if
 
