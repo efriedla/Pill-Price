@@ -298,7 +298,7 @@ export function compareDecimal(a: string, b: string): number {
  * A tuple rather than an object, and `null` rather than a gap marker, because
  * the field names are the file. Measured against the real 32,621-NDC snapshot,
  * four quarters of `{quarter, perUnit, effectiveDate, observations}` objects
- * encode to **12.8 MB** where the same data as tuples is **4.4 MB** — the keys
+ * encode to **12.6 MB** where the same data as tuples is **4.8 MB** — the keys
  * outweigh the values roughly two to one. At the object shape the JSON store's
  * ~20 MB working ceiling arrives in about two years; at this one, five.
  *

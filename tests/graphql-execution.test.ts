@@ -38,6 +38,8 @@ type LoaderStubs = {
   label?: () => Promise<unknown>;
   related?: () => Promise<{ tty: string; concepts: unknown[] }[]>;
   ndcs?: () => Promise<string[]>;
+  /** NDC -> per-unit price, as published. Absent NDCs are unpriced. */
+  prices?: Record<string, string>;
 };
 
 const context = (stubs: LoaderStubs = {}) => ({
@@ -47,7 +49,26 @@ const context = (stubs: LoaderStubs = {}) => ({
     related: { load: stubs.related ?? (async () => []) },
     label: { load: stubs.label ?? (async () => null) },
   },
-  prices: null,
+  prices: stubs.prices
+    ? {
+        asOf: "2026-09-14T03:00:00Z",
+        forNdc: (ndc: string) => {
+          const perUnit = stubs.prices?.[ndc];
+          return perUnit
+            ? {
+                pricePerUnit: perUnit,
+                effectiveDate: "2026-09-09",
+                asOf: "2026-09-14T03:00:00Z",
+                unit: "EA",
+              }
+            : null;
+        },
+        coverage: (ndcs: string[]) => ({
+          pricedPackages: ndcs.filter((n) => stubs.prices?.[n]).length,
+          totalPackages: ndcs.length,
+        }),
+      }
+    : null,
 });
 
 const run = (source: string, stubs: LoaderStubs = {}) =>
@@ -231,6 +252,62 @@ describe("priceHistory, which has no store behind it yet", () => {
     );
     expect(res.errors).toBeUndefined();
     expect(res.data?.drug).toMatchObject({ name: drug.name });
+  });
+});
+
+describe("the cheapest package, chosen without a float", () => {
+  // ADR-004 decision 1: money is a decimal string so that binary floating
+  // point never touches it. This reduction is the one place the server orders
+  // two prices, and it is not a formality — of 3,836 NADAC descriptions
+  // covering more than one NDC, 1,206 (31.4%) have packages that disagree, at
+  // a median spread of 9.9% (measured, ADR-014). The figure this picks is the
+  // one on the page.
+
+  const ndcs = async () => ["A", "B", "C"];
+
+  it("picks the lowest of packages that disagree", async () => {
+    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+      ndcs,
+      prices: { A: "0.64093", B: "0.53801", C: "0.58120" },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({ price: { pricePerUnit: "0.53801" } });
+  });
+
+  it("orders by magnitude, not by string — 9.99 is cheaper than 10.00", async () => {
+    // The shape a lexicographic comparison gets wrong: "10.00" sorts before
+    // "9.99". compareDecimal compares integer-part length first.
+    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+      ndcs,
+      prices: { A: "10.00", B: "9.99", C: "12.50" },
+    });
+    expect(res.data?.drug).toEqual({ price: { pricePerUnit: "9.99" } });
+  });
+
+  it("compares fractions of unequal length", async () => {
+    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+      ndcs,
+      prices: { A: "0.1", B: "0.09", C: "0.10000" },
+    });
+    expect(res.data?.drug).toEqual({ price: { pricePerUnit: "0.09" } });
+  });
+
+  it("returns the price as published, digit for digit", async () => {
+    // The reason none of this may round-trip through a float: 8.14515 is not
+    // representable, and the page renders what NADAC published.
+    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+      ndcs: async () => ["A"],
+      prices: { A: "8.14515" },
+    });
+    expect(res.data?.drug).toEqual({ price: { pricePerUnit: "8.14515" } });
+  });
+
+  it("is null when no package is priced", async () => {
+    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+      ndcs,
+      prices: { D: "0.10" },
+    });
+    expect(res.data?.drug).toEqual({ price: null });
   });
 });
 

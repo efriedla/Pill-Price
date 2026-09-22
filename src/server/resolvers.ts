@@ -2,6 +2,7 @@ import "server-only";
 
 import type { GraphQLContext } from "./context";
 import { UpstreamUnavailableError } from "./http";
+import { compareDecimal } from "./nadac/snapshot";
 import { isLabelQueryableTty } from "./openfda-client";
 import { searchDrugs } from "./rxnorm-client";
 import {
@@ -145,9 +146,19 @@ export const resolvers = {
       if (priced.length === 0) return null;
       // NADAC prices a product rather than a package, so these are usually all
       // identical (§3.3). Taking the lowest is still the honest reduction when
-      // they are not.
+      // they are not — and "usually" is doing less work than that comment
+      // implies: of 3,836 descriptions covering more than one NDC, 1,206
+      // (31.4%) have packages that disagree, at a median spread of 9.9%
+      // (measured, ADR-014). So this reduction decides a visible number.
+      //
+      // Compared with `compareDecimal`, on the digits. This was the one live
+      // `Number()` on a price in the codebase: comparison-only, so nothing
+      // rounded and no figure was ever wrong — but ADR-004 makes money a
+      // decimal string precisely so that a float never touches it, and a rule
+      // with one exception in it is a rule someone will copy the exception
+      // from. The lint rule does not catch this shape.
       return priced.reduce((a, b) =>
-        Number(a.pricePerUnit) <= Number(b.pricePerUnit) ? a : b,
+        compareDecimal(a.pricePerUnit, b.pricePerUnit) <= 0 ? a : b,
       );
     },
 
