@@ -251,7 +251,9 @@ becoming permanent. That rule needs a test, not just a sentence here. The
 snapshot file also roughly doubles, which is still well inside the JSON store but
 worth watching against the ~20 MB ceiling as the series accumulates — **at
 0.28 MB per quarter, that ceiling is roughly 14 years away**, so it is a note,
-not a risk.
+not a risk. *(Superseded — the shipped shape costs ~0.88 MB per quarter and
+reaches the ceiling in about five years. See the amendment below; the sentence
+is kept as written because it is what was decided on.)*
 
 **Committed to.** A four-quarter chart at launch, stated as such in the UI rather
 than presented as "price history" without qualification. And the pre-window tail
@@ -264,6 +266,99 @@ is unchanged by this decision — the local-filesystem problem is the same at
 1.6 MB as at 3.9 MB — and it belongs with ADR-001's hosting constraint, not
 here.
 
+## Amendment, 2026-09-22: the headroom is five years, not fourteen
+
+**Status:** proposed — the correction is measured; the choice it forces is the
+author's. Decision section below is deliberately empty.
+
+Code-free per the amendment rule: the measurement rode with #62, but what to do
+about it changes a consequence this ADR committed to, and accepting a fix and
+accepting a change of mind should not be the same click.
+
+### What the measurement says
+
+The **0.28 MB per quarter** above was measured on a shape holding *only prices*
+— one bare array per NDC against a shared axis. But this ADR also commits, in
+the Decision, to every point being "a thing NADAC published on a date we can
+name", and `PricePoint.observations` is in the SDL. The shape that carries both
+is what #62 shipped, and it costs more than the ADR priced.
+
+Measured with the shipped encoder against the real 32,621-NDC snapshot, dense
+(every NDC in every quarter), so an upper bound in every row:
+
+| Stored shape | 4q | 8q | 12q | 20q | Marginal | ~20 MB reached |
+| --- | --- | --- | --- | --- | --- | --- |
+| Named-field objects, all three fields | 12.6 | 24.0 | 35.4 | 58.1 | ~2.8 MB/q | ~2 years |
+| **Tuples: price + date + observations (shipped)** | **4.8** | **8.4** | **11.9** | **19.0** | **~0.88 MB/q** | **~5 years** |
+| Tuples: price + date | 4.6 | 7.8 | 11.1 | 17.7 | ~0.82 MB/q | ~5.5 years |
+| Tuples: price + observations | 3.1 | 5.0 | 6.8 | 10.5 | ~0.46 MB/q | ~10 years |
+| Price only (the shape measured above) | 2.6 | 3.9 | 5.2 | 7.9 | ~0.33 MB/q | ~14 years |
+
+Three things fall out of that table, and the third is the one that matters:
+
+1. **The original 14-year figure was arithmetically right and structurally
+   wrong.** It is exactly what the bottom row still measures. It priced a shape
+   that does not carry this ADR's own commitments.
+2. **The positional tuple encoding is what keeps this inside the JSON store at
+   all** — 4.8 MB against 12.6 MB for the same data as named-field objects,
+   because the keys outweigh the values roughly two to one. Without it the
+   ceiling is two years, not five, and Q2 reopens almost immediately.
+3. **The per-point `effectiveDate` is nearly the whole remaining cost.**
+   Dropping `observations` buys about six months; dropping the date roughly
+   doubles the headroom. The expensive field is the one the Decision names.
+
+Caveats, so the figures are not read as more precise than they are:
+`observations` was encoded as a single digit (real counts run 1-13, so two
+digits late in a quarter); the rows are dense, which no real quarter is; and
+"~20 MB" is itself a soft working ceiling from Q2, not a measured parse-time
+cliff.
+
+### Options considered
+
+**Option A — change nothing; correct the number and keep the shape.** Five years
+of headroom, and the ceiling arrives a quarter at a time with plenty of warning.
+*For:* the shape carries exactly what the Decision committed to, and five years
+is still far past launch for a project whose hosting question is itself still
+open. *Against:* the ADR's "it is a note, not a risk" was written about 14
+years; at five it is closer to a dated commitment than a note, and the accumulation
+is deliberately one-way.
+
+**Option B — drop `observations` from the stored point.** Recompute nothing; the
+field leaves the store and the SDL field is either removed or resolves to an
+absence. *For:* it is the cheapest field to defend losing — a count of
+publications in a quarter is context, not the figure. *Against:* it buys about
+six months, which is not worth an SDL change, and `observations` is what tells a
+reader whether a quarter's price is one publication or thirteen.
+
+**Option C — drop the per-point `effectiveDate` and label points by bucket.**
+Roughly doubles the headroom to ~10 years. *For:* it is the only field-level
+change that materially moves the number. *Against:* it contradicts the Decision
+directly — the bucket label is ours, NADAC's date is theirs, and without the date
+the chart's points stop being things anyone published. It also removes the
+distinction this ADR leaned on when it refused to average weeks.
+
+**Option D — keep the shape, cap the depth.** A rolling window — say 20 quarters
+— dropping the oldest bucket as a new one closes, so the store reaches a steady
+state under the ceiling and stays there. *For:* it bounds the file permanently
+without giving up a field, and five years of quarterly history is already more
+than "no backfill" promised. *Against:* it makes the accumulation lossy, which
+is a second way for the store to stop being derivable; it needs its own
+immutability argument; and it would discard history the job paid for.
+
+**Option E — accept that Q2 reopens on a date.** Keep everything, and treat "the
+engine question returns past ~20 MB" as scheduled for ~2031 rather than ~2040.
+*For:* it is the honest reading of the Decision's own part 4, which already
+names the ceiling as the trigger. *Against:* it defers a decision this amendment
+exists to surface, and the hosting question (still open) is entangled with it.
+
+### Decision
+
+<!-- Yours. -->
+
+### Consequences
+
+<!-- Written once the decision is made. -->
+
 ## Revisit if
 
 - Coverage rises materially above 8%, or community-submitted prices (issue #11)
@@ -275,5 +370,7 @@ here.
   immutability rule has a hole in it, and it is worth checking deliberately once
   rather than waiting for someone to notice a wrong chart.
 - **Users ask for depth the accumulation cannot reach yet.** Backfilling older
-  yearly datasets stays available at ~5-19 minutes each and ~0.28 MB per
-  quarter; it was declined as launch scope, not ruled out.
+  yearly datasets stays available at ~5-19 minutes each and ~0.88 MB per
+  quarter in the shipped shape (see the amendment); it was declined as launch
+  scope, not ruled out. Backfill and accumulation draw on the same headroom,
+  so a backfill now costs years off the ceiling rather than months.
