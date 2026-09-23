@@ -485,3 +485,71 @@ explicitly because this is a healthcare project with a threat-model deliverable.
 - The `openFDANotFound` corpus shows a TTY skew, or a set of drugs that a second
   source would cover.
 - Request volume approaches the 1,000/day cap.
+
+## Amendment, 2026-09-23: a price says why it is missing
+
+**Status:** accepted. Decided by the author in conversation on 2026-09-23.
+Code-free under the amendment rule, because it changes the response shape. The
+implementation is a separate PR.
+
+### What was found
+
+`Drug.price` and `Package.price` are nullable `Price`, and the resolver returns
+`null` when no snapshot is loaded (`if (!ctx.prices) return null`). That is the
+same `null` as "NADAC publishes no acquisition cost for this", which the
+resolver's own comment calls the typical case. The snapshot is gitignored, so
+**every CI build has no prices**. Under ADR-005 the drug page prerenders 860975,
+so a build would bake "not published" into a static page as a statement of
+fact. If the file were missing in production, the live site would say the same
+thing on every page. It is the silence this ADR exists to forbid, on the one
+priced field it had not reached. `priceHistory` was converted for exactly this
+reason (see its SDL comment).
+
+### Decision
+
+1. **`Drug.price` and `Package.price` become `PriceResult! = Price | Absent |
+   Unavailable`,** resolved through `resolveDegradable` like every other
+   degradable field.
+   - **Priced:** a `Price`, unchanged.
+   - **Not published** (the snapshot is loaded and complete, and this is not in
+     it): `Absent`, source `NADAC`.
+   - **No snapshot loaded:** `Unavailable`, source `NADAC`,
+     **`retryable: false`**. A retry cannot load a file that is not there. This
+     matches `priceHistory`.
+2. **The copy is the author's, verbatim:**
+   - `Absent`: "NADAC doesn't publish an acquisition cost for this drug (as of
+     {date})." `{date}` is the snapshot's `asOf`, formatted as a calendar date
+     and never through `Date()`, which shifts a day west of UTC.
+   - `Unavailable`: "We couldn't load price data. This is on our side, not
+     NADAC's. Everything else on this page is current."
+3. **A deploy build fails without a complete snapshot.** When
+   `REQUIRE_NADAC_SNAPSHOT=1` is set, a build that cannot load a complete
+   snapshot fails instead of prerendering. The variable is set only where the
+   app is deployed. CI's PR builds run without it: they prerender the honest
+   `Unavailable` state, and nothing they build is served.
+
+### Rejected
+
+- **Fail every build** (the author's first choice, narrowed in the same
+  conversation). The snapshot job takes ~19 minutes, and `build` is a required
+  check, so every PR would go red. Two ways around that were rejected: caching
+  the snapshot in CI (one slow PR a week, and CI depending on
+  data.medicaid.gov) and a committed fixture snapshot (a real build could pass
+  on fake prices).
+- **The union alone, with no build guard.** A deploy could then ship a site
+  whose every price says "couldn't load". That's honest, but it's a broken
+  deploy that should have been stopped.
+- **A separate `Query.priceSnapshot` status field.** Every consumer would have
+  to remember to check it. That is the silent failure again, one level up.
+- **Only `Drug.price`.** It would leave `Package.price` with the same `null`
+  mix-up, waiting for the first UI that shows packages.
+
+### Consequences
+
+- An SDL change to a shipped field: `api-contract.md` and every selection of
+  `price` change with it. Selections need `__typename` to discriminate (see the
+  typed-operations PR).
+- A prerendered page reflects the snapshot of its build. The `Unavailable` copy
+  only reaches production if the variable is not set, which the deploy
+  configuration must guarantee. That belongs to the hosting decision, still
+  open.
