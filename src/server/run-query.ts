@@ -55,7 +55,14 @@ export async function runQuery<
   if (!result.data) {
     throw new QueryError(["Execution returned no data and no errors."]);
   }
-  return result.data as TData;
+  // **Plain objects out, never graphql-js's own.** Execution builds its
+  // results with a null prototype, and a page's query runs inside a
+  // `use cache` function whose return value React must serialize. It refuses
+  // those: "Only plain objects ... can be passed ... null prototypes are not
+  // supported." That failed the first `next build` of /drug/860975, and no
+  // unit test could see it. `structuredClone` rebuilds the tree as ordinary
+  // objects and arrays; GraphQL data is JSON-shaped, so nothing is lost.
+  return structuredClone(result.data) as TData;
 }
 
 export class QueryError extends Error {

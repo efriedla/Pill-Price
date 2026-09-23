@@ -64,8 +64,7 @@ describe("runQuery", () => {
     // No __typename except where DrugHeader selects it (on the price union),
     // and graphql-js adds none of its own. The generated `DrugHeaderQuery` must say the same — it once claimed
     // `__typename: 'Drug'` here, which is what `skipTypename` in codegen.ts
-    // fixes. (Not `toStrictEqual`: graphql-js builds null-prototype objects,
-    // so that fails on the prototype with "no visual difference".)
+    // fixes.
     expect(data).not.toHaveProperty("__typename");
     expect(data.drug).not.toHaveProperty("__typename");
     expect(data).toEqual({
@@ -86,6 +85,20 @@ describe("runQuery", () => {
         },
       },
     });
+  });
+
+  it("returns plain objects, which a use cache boundary can serialize", async () => {
+    // graphql-js builds null-prototype objects, and React refuses to serialize
+    // them out of a "use cache" function. This is what broke the first
+    // production build of /drug/860975.
+    const data = await runQuery(
+      DrugHeaderDocument,
+      { rxcui: "860975" },
+      stubContext({ prices: { "00093726701": "0.08145" } }),
+    );
+    expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(data.drug)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(data.drug?.price)).toBe(Object.prototype);
   });
 
   it("returns null for an unknown rxcui — an absence, not an error", async () => {
@@ -144,7 +157,7 @@ describe("operation types", () => {
   });
 
   it("carry no __typename the query did not select", () => {
-    // The type half of the toStrictEqual above. If this starts failing, the
+    // The type half of the runtime __typename checks above. If this fails, the
     // types are promising a discriminant the runtime result does not have.
     expectTypeOf<NonNullable<DrugHeaderQuery["drug"]>>().not.toHaveProperty(
       "__typename",
