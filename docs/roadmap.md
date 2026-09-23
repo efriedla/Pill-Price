@@ -2,6 +2,8 @@
 
 **Goal:** a small, deeply-documented project that produces defensible interview evidence for every non-people bullet on the target JD.
 
+**Re-scoped 2026-09-23 — [ADR-013](adr/013-scope-under-schedule.md).** The calendar reached week 5 with W1–W2 done. What ships, in order: search + detail deployed (W3), the performance case study (from W6), the a11y audit against the real build (from W7), then the README and one post (from W8). Everything else below is struck through and dated rather than deleted — deferred, not abandoned. Compare (W4) is the largest cut; ADR-013 is the written answer to why.
+
 **Time budget:** 2 hrs/day focused + 4 hrs/day Claude Code, 5–6 days/week.
 
 **Calibration:** TypeScript, App Router, and GraphQL are not new to you. Week 1 is compressed accordingly and the depth is pushed into the data layer (W2), performance (W6), and the written artifacts.
@@ -12,15 +14,15 @@
 
 The repo is the smaller half. Ship all of this:
 
-- [ ] Deployed app — 4 routes, no auth, no database
+- [ ] Deployed app — 4 routes, no auth, no database — **2 routes, not 4** (`/search`, `/drug/[rxcui]`) — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
 - [ ] 8 ADRs
 - [ ] API contract document
 - [ ] Performance case study (before/after, with numbers)
 - [ ] Accessibility audit (WCAG 2.2 AA)
-- [ ] Threat model
+- [ ] ~~Threat model~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] `CONTRIBUTING.md` + component API guidelines
 - [ ] PR history with substantive review comments on every PR
-- [ ] 3 blog posts + 1 eight-minute architecture walkthrough video
+- [ ] 3 blog posts + 1 eight-minute architecture walkthrough video — **1 post; the other two and the video deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
 
 ---
 
@@ -105,6 +107,8 @@ This is the week that carries the most interview weight. Spend the focused hours
 
 ## Week 4 — Compare (the complex feature)
 
+**Deferred in full — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23.** Kept below as written, so the plan and the cut stay side by side.
+
 Your "independently led a complex feature from concept through launch" story.
 
 **Focused hours:** URL-as-state design — how do 4 drug IDs, a sort, and a units toggle serialize into a shareable, back-button-correct URL? Write the diffing logic yourself. Design the empty and partial states deliberately (1 drug selected, 4 selected, one drug missing label data).
@@ -112,12 +116,12 @@ Your "independently led a complex feature from concept through launch" story.
 **Delegate:** compare table UI, add/remove flow, responsive collapse for mobile, sticky column header.
 
 **Definition of done:**
-- [ ] All compare state in the URL — zero `useState` for anything shareable
-- [ ] Back/forward buttons behave correctly through 5+ state changes
-- [ ] Copy the URL into a fresh incognito window → identical view
-- [ ] Handles 1–4 drugs and missing-data rows without layout break
-- [ ] Usable at 320px width
-- [ ] ADR-006 (URL-as-state over client store) merged — explicitly address why not Redux
+- [ ] ~~All compare state in the URL — zero `useState` for anything shareable~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Back/forward buttons behave correctly through 5+ state changes~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Copy the URL into a fresh incognito window → identical view~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Handles 1–4 drugs and missing-data rows without layout break~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Usable at 320px width~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~ADR-006 (URL-as-state over client store) merged — explicitly address why not Redux~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 ---
 
@@ -130,11 +134,11 @@ Your "independently led a complex feature from concept through launch" story.
 **Three critical journeys:** search → detail; detail → add to compare → compare view; shared compare URL → cold load.
 
 **Definition of done:**
-- [ ] Coverage floor set in CI, then **raised in a separate follow-up PR** so the history shows improvement
-- [ ] 3 Playwright journeys green in CI against a production build
-- [ ] `jest-axe` fails the build on a violation (prove it)
+- [ ] ~~Coverage floor set in CI, then **raised in a separate follow-up PR** so the history shows improvement~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~3 Playwright journeys green in CI against a production build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~`jest-axe` fails the build on a violation (prove it)~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] MSW covers every upstream failure mode from W2
-- [ ] `testing-strategy.md`: what's tested, at what level, and what's deliberately not
+- [ ] ~~`testing-strategy.md`: what's tested, at what level, and what's deliberately not~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 ---
 
@@ -147,12 +151,12 @@ The week that produces your best interview artifact.
 **Delegate:** Sentry with source maps + release tracking, Web Vitals reporting, Lighthouse CI config, bundle analyzer, `next/font` and image optimization.
 
 **Definition of done:**
-- [ ] Lighthouse CI budgets **fail the build** when exceeded
-- [ ] Bundle-size check in CI with a hard ceiling
-- [ ] Sentry catching real errors with readable stack traces from the deployed build
-- [ ] Web Vitals flowing to a dashboard you can screenshot
+- [ ] ~~Lighthouse CI budgets **fail the build** when exceeded~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Bundle-size check in CI with a hard ceiling~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Sentry catching real errors with readable stack traces from the deployed build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~Web Vitals flowing to a dashboard you can screenshot~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] `performance-case-study.md`: before/after LCP, INP, CLS, TBT, bundle size — plus two things you tried that didn't work and why
-- [ ] ADR-007 (perf budgets + enforcement) merged
+- [ ] ~~ADR-007 (perf budgets + enforcement) merged~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 ---
 
@@ -164,11 +168,11 @@ The week that produces your best interview artifact.
 
 **Definition of done:**
 - [ ] `a11y-audit.md`: WCAG 2.2 AA, what failed, what you fixed, what's a known gap and why
-- [ ] Full keyboard traversal of all routes with a visible focus ring throughout
-- [ ] CSP with nonces, no `unsafe-inline`, verified in the deployed build
-- [ ] BFF rate-limited; Zod rejects malformed input at every boundary
-- [ ] `threat-model.md` — including why the app stores nothing sensitive, and what that decision buys
-- [ ] *Optional:* `/guides/[slug]` from Contentful with draft preview + webhook ISR revalidation, ADR-008
+- [ ] Full keyboard traversal of all routes with a visible focus ring throughout — **kept, for the two shipped routes** — [ADR-013](adr/013-scope-under-schedule.md)
+- [ ] ~~CSP with nonces, no `unsafe-inline`, verified in the deployed build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] BFF rate-limited; Zod rejects malformed input at every boundary — **rate limiting deferred; the Zod half is not decided by ADR-013** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
+- [ ] ~~`threat-model.md` — including why the app stores nothing sensitive, and what that decision buys~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~*Optional:* `/guides/[slug]` from Contentful with draft preview + webhook ISR revalidation, ADR-008~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 **Cut rule:** if W1–6 slipped at all, skip Contentful entirely. A shallow CMS integration is worth less than a finished, polished app.
 
@@ -179,10 +183,10 @@ The week that produces your best interview artifact.
 **Focused hours:** all of it. This week is writing, not code.
 
 **Definition of done:**
-- [ ] Deployed, custom domain, no console errors, no Sentry noise
+- [ ] Deployed, custom domain, no console errors, no Sentry noise — **deploy kept; Sentry deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
 - [ ] README: what it is, architecture diagram, data sources, local setup, the honest limitations
-- [ ] 8-minute Loom walkthrough: problem → architecture → one hard tradeoff → results. Linked in the README and on your resume.
-- [ ] 3 posts drawn from ADRs. Suggested: (1) designing a GraphQL BFF over three uncooperative REST APIs, (2) URL-as-state instead of a client store, (3) the performance case study.
+- [ ] ~~8-minute Loom walkthrough: problem → architecture → one hard tradeoff → results. Linked in the README and on your resume.~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
+- [ ] ~~3 posts drawn from ADRs.~~ **One post** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23; which one is chosen once the case study and audit exist. Suggested: (1) designing a GraphQL BFF over three uncooperative REST APIs, ~~(2) URL-as-state instead of a client store~~ (compare deferred), (3) the performance case study.
 - [ ] Resume bullets rewritten to cite specific numbers from the case study
 
 ---
@@ -200,6 +204,8 @@ Code cannot produce these. One hour a week, starting week 1.
 ## JD Bullet → Evidence Map
 
 Rehearse until you can name the artifact for each without hesitating.
+
+**After ADR-013,** several rows below point at deferred work. Its Consequences section has the current map: *Complex feature* is answered by ADR-013 itself, *Evaluating new tech* falls back to ADR-012, and *3rd-party SDKs* / *Observability* have no artifact.
 
 | JD requirement | Your evidence |
 |---|---|
