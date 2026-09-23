@@ -1,0 +1,65 @@
+# The drug page's second boundary (ADR-005 Q2 B): ingredients, dose form and
+# brand/generic versions. All three read RxNorm's allrelated through one
+# shared loader, so this boundary costs one upstream call plus each version's
+# NDC lookup for its price.
+query DrugVersions($rxcui: ID!) {
+  drug(rxcui: $rxcui) {
+    name
+    doseForm {
+      __typename
+      ... on DoseForm {
+        name
+      }
+      ... on Absent {
+        reason
+      }
+      ... on Unavailable {
+        reason
+      }
+    }
+    ingredients {
+      __typename
+      ... on Ingredients {
+        ingredients {
+          rxcui
+          name
+        }
+      }
+      ... on Absent {
+        reason
+      }
+      ... on Unavailable {
+        reason
+      }
+    }
+    alternatives(kind: ALL) {
+      __typename
+      ... on Alternatives {
+        drugs {
+          rxcui
+          name
+          isGeneric
+          price {
+            __typename
+            ... on Price {
+              pricePerUnit
+              effectiveDate
+            }
+            ... on Absent {
+              reason
+            }
+            ... on Unavailable {
+              reason
+            }
+          }
+        }
+      }
+      ... on Absent {
+        reason
+      }
+      ... on Unavailable {
+        reason
+      }
+    }
+  }
+}
