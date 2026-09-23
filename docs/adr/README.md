@@ -17,7 +17,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [010](010-upstream-error-taxonomy.md)   | Upstream error taxonomy: partial vs fatal (Q3)         | accepted |
 | [011](011-timeouts-and-retries.md)     | Timeout budgets, retries and backoff on the request path | accepted |
 | [012](012-price-history-retention.md)   | How much price history do we keep, and where?           | accepted (amendment proposed) |
-| [013](013-scope-under-schedule.md)      | What ships, now that the calendar and the roadmap disagree | proposed |
+| [013](013-scope-under-schedule.md)      | What ships, now that the calendar and the roadmap disagree | accepted |
 | [014](014-price-history-read-path.md)   | What `Drug.priceHistory` actually returns                  | proposed |
 
 ## What the W1 scaffold assumed, and where it landed

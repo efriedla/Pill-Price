@@ -1,10 +1,10 @@
 # ADR-013: What ships, now that the calendar and the roadmap disagree
 
-**Status:** proposed — options only, no decision
+**Status:** accepted
+**Date:** 2026-09-21 (options), 2026-09-23 (decided)
 
-<!-- Roadmap rule 3: the author owns scope and product decisions. This lays the
-     options out for that decision; the Decision section is deliberately empty.
-     Same shape as ADR-012 (#59 options, #60 decision). -->
+<!-- Roadmap rule 3: the author owns scope and product decisions. Options in
+     #63, decision here. Same shape as ADR-012 (#59 options, #60 decision). -->
 
 ## Context
 
@@ -162,11 +162,95 @@ Only live if Q1 is B, C or D — Option A answers this by moving the date.
 
 ## Decision
 
-<!-- Yours. -->
+**Q1: Option D, plus the performance case study. Q2: keep the 8-week frame
+and mark the rest deferred.**
+
+The target is the JD this project was started for: a senior frontend role
+centred on Next.js, performance and accessibility. Measured against the
+roadmap's JD → evidence map, Option D as written left two core rows with no
+evidence: "Complex feature end to end" (compare) and "Next.js SSR/SSG/perf"
+(the case study). Both could not come back without giving up the date, so one
+did. **The performance case study comes back and compare stays dropped.** Once
+a real page exists the case study is cheap. It also gives the 22 ms figure a
+before and after, and it is the stronger of the two for this JD.
+
+### What ships, in dependency order
+
+1. **Search + drug detail, deployed.** This is the W3 definition of done as
+   written: streaming search, the static/tail split for detail pages, three
+   explicit states per async surface, the acquisition-cost disclaimer, and
+   ADR-005. W3 already requires the Lighthouse baseline, and the case study
+   needs it as its "before".
+2. **Performance case study.** `performance-case-study.md` from W6: profile
+   first, change one thing at a time, and report before and after for LCP, INP,
+   CLS, TBT and bundle size, including the things that did not help.
+3. **Accessibility audit against the real build.** `a11y-audit.md` from W7:
+   WCAG 2.2 AA, a manual screen-reader pass and a keyboard-only traversal of
+   the two shipped routes.
+4. **README + one post.** The README from W8, since it is what a screener opens
+   first. One post, chosen from the ADRs once the three items above exist.
+
+### Deferred
+
+**Deferred, not abandoned.** Each stays in the roadmap, marked with this ADR
+and dated:
+
+- `/compare` and ADR-006 (all of W4)
+- Playwright journeys, the coverage floor and its raise, `testing-strategy.md`
+  (W5)
+- Sentry, Web Vitals dashboard, Lighthouse CI budgets, bundle-size ceiling,
+  ADR-007 (the rest of W6)
+- Threat model, CSP with nonces, BFF rate limiting (the rest of W7)
+- Contentful and ADR-008 (already optional; the W7 cut rule has triggered)
+- The walkthrough video and the other two posts (the rest of W8)
+
+Option D named some of these and left the rest unmentioned. For the
+unmentioned ones, the rule applied was: **keep only what an item on the ship
+list depends on.** The README is kept because it is the first thing opened.
+Everything else waits.
+
+### Q2: how the roadmap records this
+
+The roadmap keeps its eight weeks. Deferred definition-of-done items are
+marked deferred with a link to this ADR rather than deleted, so the plan and
+what was cut from it stay visible. That edit is a follow-up PR, made after
+this decision is accepted, so the list above can still change in review.
+
+### Rejected
+
+- **A: hold scope, move the date.** It leaves nothing to open if a screen
+  lands in October.
+- **B: vertical slice.** It drops the a11y audit, which rates High for this JD.
+- **C: the repo is the artifact.** An a11y audit of an app that does not exist
+  is not an audit.
+- **D as written.** It leaves "Next.js SSR/SSG/perf" with no evidence.
+- **D + perf + compare.** It covers every core JD row, but compare costs a full
+  roadmap week and the date slips again.
 
 ## Consequences
 
-<!-- Written once the decision is made. -->
+**The JD evidence map, after this decision.**
+
+| JD requirement | Evidence now |
+| --- | --- |
+| Complex feature end to end | **Gone.** The answer is this ADR: the feature was cut on purpose, with the reasoning in writing. |
+| Evaluating new tech / POCs | ADR-006 is deferred. **ADR-012 stands in**: four options, measured, one taken. |
+| Next.js SSR/SSG/perf | ADR-005 + the performance case study, both kept |
+| Performance, a11y, web standards | Case study + a11y audit; CSP deferred |
+| CI/CD + dev workflows | The existing Actions pipeline; Lighthouse CI deferred |
+| 3rd-party SDKs, Observability | **Empty.** Sentry, Vitals and Contentful are all deferred. Two of the three were good-to-haves. |
+| Security controls | Zod at every boundary; threat model, CSP and rate limiting deferred |
+
+**Committed to.** "Why is there no compare?" is now a question with a written
+answer, and the answer has to be rehearsed like any other artifact on the map.
+
+**Not claimed.** This does not fit in the original window. W3 alone is ~6.5
+active days on the measured cadence, and the three items after it are
+estimated, not measured, at roughly the same again. At 42% of days active that
+is **about five calendar weeks, landing late October 2026**, against a window
+that closes 2026-10-16. The first clickable URL comes at the end of step 1,
+about 2–3 weeks out. That is the milestone the forcing function actually cares
+about.
 
 ## Revisit if
 
