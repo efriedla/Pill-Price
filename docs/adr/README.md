@@ -19,6 +19,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [012](012-price-history-retention.md)   | How much price history do we keep, and where?           | accepted (amendment proposed) |
 | [013](013-scope-under-schedule.md)      | What ships, now that the calendar and the roadmap disagree | accepted |
 | [014](014-price-history-read-path.md)   | What `Drug.priceHistory` actually returns                  | proposed |
+| [015](015-what-label-is.md)            | What `Label` is (Q2)                                        | proposed |
 
 ## What the W1 scaffold assumed, and where it landed
 
