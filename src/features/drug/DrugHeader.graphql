@@ -1,0 +1,17 @@
+# The drug page's first boundary (ADR-005 Q2 B): identity and price.
+# RxNorm properties plus the NADAC snapshot, and nothing from openFDA, so this
+# resolves without waiting on the slowest source.
+query DrugHeader($rxcui: ID!) {
+  drug(rxcui: $rxcui) {
+    rxcui
+    name
+    tty
+    isGeneric
+    price {
+      pricePerUnit
+      unit
+      effectiveDate
+      asOf
+    }
+  }
+}
