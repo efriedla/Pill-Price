@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import type { DrugVersionsQuery } from "@/lib/gql";
 
-import { PriceLine } from "./PriceLine";
+import { PriceLine, type PriceLinePrice } from "./PriceLine";
 
 /** What `DrugVersions` selected for a drug that exists. */
 export type VersionsDrug = NonNullable<DrugVersionsQuery["drug"]>;
@@ -73,12 +73,38 @@ function Facts({ drug }: { drug: VersionsDrug }) {
 }
 
 /**
+ * The one sentence every version shares, when there is one: two or more
+ * versions, none priced, all for the same reason. Ibuprofen's eight OTC brands
+ * each said "NADAC doesn't publish…" in full, eight times over, and the
+ * author's call (2026-09-23) was to say it once under the list.
+ *
+ * Only when *every* version shares it. A list mixing priced and unpriced
+ * versions keeps each card's own line, because which ones are unpriced is
+ * then the information. A single version keeps its line in the card: there is
+ * nothing repeated to collapse.
+ */
+export function sharedAbsence(prices: readonly PriceLinePrice[]): string | null {
+  if (prices.length < 2) return null;
+  const [first] = prices;
+  if (!first || first.__typename === "Price") return null;
+  return prices.every(
+    (p) => p.__typename !== "Price" && p.reason === first.reason,
+  )
+    ? first.reason
+    : null;
+}
+
+/**
  * ui-spec §5 as amended 2026-09-23: the same strength and form, from the
  * other side of the brand/generic line. Each card shows its own price and
  * nothing computed: a difference is arithmetic on money.
  */
 function Versions({ drug }: { drug: VersionsDrug }) {
   const { alternatives } = drug;
+  const shared =
+    alternatives.__typename === "Alternatives"
+      ? sharedAbsence(alternatives.drugs.map((v) => v.price))
+      : null;
   return (
     <section
       aria-labelledby="h-versions"
@@ -110,10 +136,17 @@ function Versions({ drug }: { drug: VersionsDrug }) {
                     {version.isGeneric ? "Generic" : "Brand"}
                   </span>
                 </p>
-                <PriceLine price={version.price} size="small" />
+                {shared ? null : (
+                  <PriceLine price={version.price} size="small" />
+                )}
               </li>
             ))}
           </ul>
+          {shared ? (
+            <p className="mt-2 max-w-[var(--measure)] border-t border-border-hairline pt-4 text-step--1 text-text-secondary">
+              {shared}
+            </p>
+          ) : null}
         </>
       ) : (
         <p className="max-w-[var(--measure)] text-text-secondary">
