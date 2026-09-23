@@ -69,17 +69,19 @@ Horizontal stacked bar showing active ingredients by strength — e.g. acetamino
 
 This is the closest honest analog to the fund-holdings bar in the reference, and it reuses the same component shape.
 
+> **Deferred, 2026-09-23 (author's decision).** The schema's `Ingredient` is `{ rxcui, name }`, with no strength, so there is nothing to draw. Until strengths exist, the page shows ingredient names and the dose form as plain facts. Adding strengths is a schema change and a source decision (RxNorm SCDC names vs openFDA NDC `active_ingredients[]`), and it gets its own ADR-backed PR. Percocet (1049640, two ingredients) is the case to test it against.
+
 ---
 
 ## 5. Alternatives
 
 Two distinct, factual sections. Never one blended "you might also like" list.
 
-**Same active ingredient** — RxNorm related concepts sharing the ingredient. This is the substitution question users actually have, and it's a factual relationship.
+**Brand and generic versions** — *renamed 2026-09-23 (author's decision); was "Same active ingredient".* RxNorm's related products for a drug are its brand or generic versions **at the same strength and form**: SCD↔SBD, plus packs. Measured across 7 drugs, the counts were 1, 1, 1, 2, 1, 8 (ibuprofen's OTC brands) and 0. They are never another strength or a different product, so "same active ingredient" undersold how close they are. Note, verbatim: *"Same ingredients, strength and form as {name}. Not a substitution recommendation — talk to a pharmacist."*
 
-**Same drug class** — grouped by `pharm_class_epc`. Framed as informational, explicitly not interchangeable.
+**Same drug class** — grouped by `pharm_class_epc`. Framed as informational, explicitly not interchangeable. *Not built: `pharm_class_epc` is not in the schema yet.*
 
-Each card: name, class, current NADAC per unit, and the price delta versus the drug being viewed. Copy requirement: *"Shares an active ingredient with X. Not a substitution recommendation — talk to a pharmacist."* Never "people also take."
+Each card: name, brand or generic, and its own NADAC price under the §9 rule (unit and date), or the server's sentence when there is none. **No computed price difference** (2026-09-23, author's decision). A delta is arithmetic on money, and this app has so far refused to do any. The reader compares the two figures; a side-by-side comparison is `/compare`'s job. Never "people also take."
 
 ---
 
