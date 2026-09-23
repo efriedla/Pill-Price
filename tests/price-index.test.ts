@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { PriceEntry, Snapshot } from "@/server/nadac/snapshot";
-import { buildPriceIndex, IncompleteSnapshotError } from "@/server/prices";
+import {
+  buildPriceIndex,
+  IncompleteSnapshotError,
+  MissingSnapshotError,
+  requireNadacSnapshot,
+  type PriceIndex,
+} from "@/server/prices";
 
 /**
  * The read side of ADR-009: the local index resolvers meet instead of calling
@@ -105,5 +111,40 @@ describe("a price with no unit", () => {
 
   it("leaves other packages untouched", () => {
     expect(index().forNdc("29300038901")?.unit).toBe("EA");
+  });
+});
+
+describe("requireNadacSnapshot, the deploy-build guard", () => {
+  // ADR-010 amendment, 2026-09-23: only deploy builds fail without prices. A
+  // PR build prerenders the honest Unavailable state, because the snapshot
+  // job takes ~19 minutes and build is a required check.
+  const none = async () => null;
+  const some = async () => ({ asOf: "2026-09-14T03:00:00Z" }) as PriceIndex;
+
+  it("fails a deploy build that has no snapshot", async () => {
+    await expect(
+      requireNadacSnapshot({ REQUIRE_NADAC_SNAPSHOT: "1" }, none),
+    ).rejects.toBeInstanceOf(MissingSnapshotError);
+  });
+
+  it("passes a deploy build that has one", async () => {
+    await expect(
+      requireNadacSnapshot({ REQUIRE_NADAC_SNAPSHOT: "1" }, some),
+    ).resolves.toBeUndefined();
+  });
+
+  it("does not load anything when the variable is unset", async () => {
+    let loaded = false;
+    await requireNadacSnapshot({}, async () => {
+      loaded = true;
+      return null;
+    });
+    expect(loaded).toBe(false);
+  });
+
+  it("treats any value but 1 as unset, so a stray 'false' cannot arm it", async () => {
+    await expect(
+      requireNadacSnapshot({ REQUIRE_NADAC_SNAPSHOT: "false" }, none),
+    ).resolves.toBeUndefined();
   });
 });

@@ -124,7 +124,9 @@ export function buildPriceIndex(snapshot: Snapshot): PriceIndex {
  * ADR-009 was written to avoid.
  *
  * A missing snapshot resolves to `null` rather than throwing: a cold start
- * before the first job run is legitimate, and every price is simply absent.
+ * before the first job run is legitimate. Every price then resolves to
+ * `Unavailable` rather than `Absent`, and a deploy build refuses it outright
+ * (`requireNadacSnapshot`, below).
  */
 let cached: Promise<PriceIndex | null> | undefined;
 
@@ -138,4 +140,37 @@ export function loadPriceIndex(
 /** Tests only — the module-level cache would otherwise leak between cases. */
 export function resetPriceIndexCache() {
   cached = undefined;
+}
+
+/**
+ * The deploy-build guard (ADR-010 amendment, 2026-09-23).
+ *
+ * With `REQUIRE_NADAC_SNAPSHOT=1`, a missing snapshot is an error, not a cold
+ * start. The variable is set only where the app is deployed, so a deploy
+ * cannot ship pages prerendered without prices. PR builds leave it unset and
+ * prerender the honest `Unavailable` state instead: the snapshot job takes
+ * ~19 minutes, and `build` is a required check.
+ *
+ * Called from `generateStaticParams`, which Next runs during `next build`
+ * before any page is generated. That makes it a documented build-time hook,
+ * where `NEXT_PHASE` would have been an internal detail. An *incomplete*
+ * snapshot needs no check here: `buildPriceIndex` already refuses one loudly.
+ */
+export class MissingSnapshotError extends Error {
+  constructor() {
+    super(
+      "REQUIRE_NADAC_SNAPSHOT=1 but no NADAC snapshot was found. " +
+        "Run `npm run snapshot:nadac` before building, or this deploy would " +
+        "serve every price as \"couldn't load\".",
+    );
+    this.name = "MissingSnapshotError";
+  }
+}
+
+export async function requireNadacSnapshot(
+  env: Record<string, string | undefined> = process.env,
+  load: () => Promise<PriceIndex | null> = loadPriceIndex,
+): Promise<void> {
+  if (env.REQUIRE_NADAC_SNAPSHOT !== "1") return;
+  if ((await load()) === null) throw new MissingSnapshotError();
 }

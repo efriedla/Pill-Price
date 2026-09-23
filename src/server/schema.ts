@@ -36,8 +36,8 @@ export const typeDefs = /* GraphQL */ `
     # That guarantee is a real constraint on the resolver, not a formality:
     # ui-spec §9 says every price is rendered with its unit, so a figure whose
     # unit is unknown is not a price this app may state. A row that arrives
-    # without one becomes a **null Price** — the same absence as no NADAC
-    # record at all — rather than a Price carrying a blank unit.
+    # without one becomes **Absent** (see PriceResult), the same absence as no
+    # NADAC record at all, rather than a Price carrying a blank unit.
     #
     # String! and not an enum, matching PriceSeries.unit. A closed enum would
     # turn a fourth value NADAC decides to ship into a hard response error on
@@ -87,7 +87,7 @@ export const typeDefs = /* GraphQL */ `
   type Package {
     ndc: ID!
     description: String!
-    price: Price
+    price: PriceResult! # see PriceResult: why a price says why it is missing
   }
 
   enum AlternativeKind {
@@ -158,6 +158,18 @@ export const typeDefs = /* GraphQL */ `
   # spinner on it, and this is the same error in the other direction.
   union PriceSeriesResult = PriceSeries | Absent | Unavailable
 
+  # ADR-010 amendment, 2026-09-23. Price was a nullable Price, and null meant
+  # two things: NADAC publishes no figure for this (the typical case, ~92% of
+  # packages), and this side has no snapshot loaded. The snapshot is not in
+  # the repo, so every CI build is the second case, and a prerendered page
+  # would have stated the first as fact. Same silence priceHistory was
+  # converted out of, on the one priced field it had not reached.
+  #
+  # Absent: the snapshot is loaded and complete, and this is not in it.
+  # Unavailable, retryable false: no snapshot is loaded. A retry cannot load a
+  # file that is not there. Both sentences are the author's.
+  union PriceResult = Price | Absent | Unavailable
+
   # Q7's other half. The ingredient and the dose form are not alternatives —
   # "Oral Tablet" is not something you could be given instead of your pill —
   # but they are not nothing either: they are what the drug *is*.
@@ -195,7 +207,7 @@ export const typeDefs = /* GraphQL */ `
     tty: String!
     isGeneric: Boolean!
     packages: [Package!]!
-    price: Price
+    price: PriceResult! # the cheapest package's; see PriceResult
     # Non-null again, but for the opposite reason it was non-null before.
     # As PriceSeries! with no resolver it took the page down: the non-null
     # propagated up and drug itself came back null (measured 2026-09-16,
