@@ -82,7 +82,7 @@ This is the week that carries the most interview weight. Spend the focused hours
 
 **Definition of done:**
 - [x] `api-contract.md` published: every field, its source, its freshness, its failure mode — [`docs/api-contract.md`](api-contract.md); the last two `TTL TBD` cells closed 2026-09-16
-- [ ] Schema is codegen'd into typed hooks; no hand-written response types — **half done.** No hand-written response types remain: `DrugSummary` is now `Pick<Drug, …>` off the generated SDL types (2026-09-16). `SearchQuery` and `CompareState` stay hand-written on purpose — they are URL state, not responses. The **typed hooks** half is still open: nothing consumes the schema at runtime yet, so it lands with the W3 UI.
+- [ ] Schema is codegen'd into ~~typed hooks~~ **typed operations**; no hand-written response types — **amended 2026-09-23:** [ADR-005](adr/005-static-dynamic-split.md) has pages execute codegen'd `TypedDocumentNode`s against the schema in-process, and search has no client data layer, so no client hook exists to be typed. The typed-operations half closes when the first page queries through one. No hand-written response types remain: `DrugSummary` is `Pick<Drug, …>` off the generated SDL types (2026-09-16); `SearchQuery` and `CompareState` stay hand-written on purpose — they are URL state, not responses.
 - [x] Kill one upstream in MSW → app degrades gracefully, no crash, user sees why — `tests/kill-one-upstream.test.ts`, 9 cases
 - [x] p95 BFF response for a cached drug < 200ms (measure it, record it) — **22 ms**, recorded in [`docs/performance.md`](performance.md)
 - [x] ADR-004 (BFF + schema design) merged — accepted 2026-08-25
