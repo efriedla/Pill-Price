@@ -4,10 +4,12 @@ import { Suspense } from "react";
 
 import {
   AcquisitionCostNotice,
+  DrugVersions,
+  DrugVersionsFallback,
   PriceHeader,
   PriceHeaderFallback,
 } from "@/features/drug";
-import { DrugHeaderDocument } from "@/lib/gql/documents";
+import { DrugHeaderDocument, DrugVersionsDocument } from "@/lib/gql/documents";
 import { requireNadacSnapshot } from "@/server/prices";
 import { runQuery } from "@/server/run-query";
 
@@ -17,9 +19,9 @@ import { PRERENDERED_RXCUIS } from "./prerendered";
  * `/drug/[rxcui]`, per ADR-005.
  *
  * The static shell is the page frame and the acquisition-cost notice. Each
- * section streams in behind its own boundary (Q2 B). This PR ships the first
- * one, identity and price. Ingredients and alternatives, then the label,
- * follow as their own boundaries.
+ * section streams in behind its own boundary (Q2 B): identity and price, then
+ * ingredients and brand/generic versions. The label is the third, still to
+ * come.
  */
 
 // Typed by hand rather than via the generated `PageProps<"/drug/[rxcui]">`,
@@ -49,6 +51,13 @@ async function loadDrugHeader(rxcui: string) {
   return runQuery(DrugHeaderDocument, { rxcui });
 }
 
+/** The second boundary's data. Cached for the same reasons, for a week. */
+async function loadDrugVersions(rxcui: string) {
+  "use cache";
+  cacheLife("weeks");
+  return runQuery(DrugVersionsDocument, { rxcui });
+}
+
 async function Header({ params }: { params: Params }) {
   // Awaited inside the boundary, never above it: reading params in the page
   // itself would tie the App Shell to one URL (ADR-005 Q2).
@@ -58,12 +67,25 @@ async function Header({ params }: { params: Params }) {
   return <PriceHeader drug={drug} />;
 }
 
+/**
+ * An unknown drug is the header's to report. Here a null simply renders
+ * nothing: calling notFound() from two boundaries would race.
+ */
+async function Versions({ params }: { params: Params }) {
+  const { rxcui } = await params;
+  const { drug } = await loadDrugVersions(rxcui);
+  return drug ? <DrugVersions drug={drug} /> : null;
+}
+
 export default function DrugPage({ params }: { params: Params }) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-8">
       <AcquisitionCostNotice />
       <Suspense fallback={<PriceHeaderFallback />}>
         <Header params={params} />
+      </Suspense>
+      <Suspense fallback={<DrugVersionsFallback />}>
+        <Versions params={params} />
       </Suspense>
     </main>
   );

@@ -1,7 +1,6 @@
-import { formatIsoDate } from "@/lib/calendar-date";
 import type { DrugHeaderQuery } from "@/lib/gql";
 
-import { roundDecimalString } from "./formatPerUnit";
+import { PriceLine } from "./PriceLine";
 
 /** What `DrugHeader` selected for a drug that exists. */
 export type HeaderDrug = NonNullable<DrugHeaderQuery["drug"]>;
@@ -25,38 +24,7 @@ export function PriceHeader({ drug }: { drug: HeaderDrug }) {
       <p className="font-numeric text-step--1 text-text-secondary tabular-nums">
         rxcui {drug.rxcui}
       </p>
-      <PriceFigure price={drug.price} />
+      <PriceLine price={drug.price} className="mt-5" />
     </header>
   );
-}
-
-/**
- * ui-spec §9: every price is followed by its unit and its date. The figure and
- * its qualifier are split so the figure can carry §2's single price colour.
- *
- * Every state has something to say. The two absences are server-authored
- * sentences (ADR-010 amendment), rendered as written. The switch has no
- * default, so a fourth member of `PriceResult` fails to compile here.
- */
-function PriceFigure({ price }: { price: HeaderDrug["price"] }) {
-  switch (price.__typename) {
-    case "Price":
-      return (
-        <p className="mt-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <span className="font-numeric text-step-3 font-semibold tracking-tight text-price-figure tabular-nums">
-            ${roundDecimalString(price.pricePerUnit)}
-          </span>
-          <span className="text-step--1 text-text-secondary">
-            per unit · as of {formatIsoDate(price.effectiveDate)}
-          </span>
-        </p>
-      );
-    case "Absent":
-    case "Unavailable":
-      return (
-        <p className="mt-5 max-w-[var(--measure)] text-text-secondary">
-          {price.reason}
-        </p>
-      );
-  }
 }
