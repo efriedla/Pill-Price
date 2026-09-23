@@ -1,11 +1,10 @@
 # ADR-005: Static/dynamic split for /search and /drug/[rxcui]
 
-**Status:** proposed — options only, no decision
-**Date:** 2026-09-23
+**Status:** accepted
+**Date:** 2026-09-23 (options), 2026-09-23 (decided)
 
-<!-- Roadmap rule 3: the author owns these decisions. This lays out the
-     options; the Decision section is deliberately empty. Same shape as
-     ADR-012 and ADR-013. -->
+<!-- Roadmap rule 3: the author owns these decisions. Options in #69,
+     decision here. Same shape as ADR-012 (#59/#60) and ADR-013 (#63/#67). -->
 
 ## Context
 
@@ -235,11 +234,77 @@ Server-render the initial `?q=`, then switch to client hooks for typing.
 
 ## Decision
 
-<!-- Yours. -->
+**Q1 A, Q2 B, Q3 A, Q4 A.** Pages query the schema in-process. The drug page
+has three boundaries, by source. A small fixed set of drug pages is
+prerendered. Search is server-rendered with the URL as its only state.
+
+1. **Q1: in-process GraphQL with typed documents.** Pages `execute` codegen'd
+   `TypedDocumentNode`s against `schema`, with a fresh context (and so fresh
+   DataLoaders) per request. Nothing on a page imports a loader or a
+   `cached*` function directly. The schema is the only way the UI reaches data.
+2. **Q2: three Suspense boundaries on `/drug/[rxcui]`, by source.** Identity
+   and price; then ingredients and alternatives; then label prose. The header
+   frame and the acquisition-cost disclaimer sit in the static shell, and
+   `params` is read inside the first boundary. Each fallback reserves its
+   section's space, because the sticky `PriceHeader` makes any jump visible.
+3. **Q3: a small fixed prerender set, committed to the repo.** It starts as
+   **860975** (metformin ER 500 MG), the drug the repo already measures and
+   documents. Other drugs are added only when a screenshot, demo or the
+   walkthrough uses them. The set is a named file, not a literal inside
+   `generateStaticParams`, so every addition is its own diff with a reason.
+   `partialPrefetching: true` is turned on with it. Everything else is served
+   as an App Shell and upgraded after its first visit.
+4. **Q4: `/search` is server-rendered, and the URL is its only state.** The
+   input writes `?q=` through a debounced `router.replace`. The results read
+   `searchParams` inside a Suspense boundary and stream in. There is no client
+   data layer and no client cache.
+
+### Rejected
+
+- **Q1 B** (direct server functions): the page would bypass ADR-010's error
+  taxonomy, and the schema would stop being the contract. **Q1 C** (client
+  hooks): ADR-001's rejected SPA option in another form.
+- **Q2 A** (one boundary): the price waits for the label. **Q2 C** (one per
+  component): more fallbacks, and no earlier paint, because sections share
+  upstream calls.
+- **Q3 B** (Medicaid utilization ranking): a real ranking, but it adds a
+  fourth upstream for a first-visit speedup, which is the only thing the list
+  buys under 16.3. It stays the answer if the list ever needs defending by
+  volume. **Q3 C** (NADAC package-count proxy): it would present a count of
+  packages as popularity.
+- **Q4 B** (client-fetched): a pasted URL paints no data. **Q4 C** (hybrid):
+  two code paths for one query.
 
 ## Consequences
 
-<!-- Written once the decision is made. -->
+**Easier.** One way to reach data, one error taxonomy, one set of types.
+Every page and the `/api/graphql` route run the same resolvers, so a test
+against the schema covers what the UI shows. The build stays small and far
+inside openFDA's keyless quota.
+
+**Harder.** Each search keystroke that settles costs a server render, with no
+client cache in front of it. That is the cost Q4 A accepts, and W6 can measure
+it. The three drug-page fallbacks each have to hold their layout, and each
+needs its loading, empty and error states in Storybook (W3's definition of
+done).
+
+**Committed to, before the first deploy.**
+
+- **The build-time degradation test** from finding 7: build with openFDA
+  failing, and prove what the prerendered page holds. Until it passes, a build
+  during an outage may bake a degraded page for a week.
+- **`partialPrefetching: true`** in `next.config.ts`. Without it the on-demand
+  App Shell described in finding 3 is not served.
+
+**Forced by this decision: the W2 "typed hooks" line.** Q1 A with Q4 A leaves
+no client hook anywhere, so W2's definition of done cannot close as worded.
+The honest replacement is typed *operations* (codegen'd documents executed
+in-process). That changes a definition of done, so under the amendment rule it
+goes in its own code-free PR, not here.
+
+**Not decided here.** Where the app is hosted, and so where the NADAC snapshot
+file lives in production (ADR-012 left this open). The first deploy needs it
+answered.
 
 ## Revisit if
 

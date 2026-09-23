@@ -9,7 +9,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [002](002-styling-and-design-tokens.md) | Styling and design tokens                              | accepted |
 | [003](003-module-boundaries.md)         | Module boundaries                                      | accepted |
 | [004](004-bff-and-schema-design.md)     | BFF and schema design                                  | accepted |
-| [005](005-static-dynamic-split.md)      | Static/dynamic split for `/search` and `/drug/[rxcui]` | proposed |
+| [005](005-static-dynamic-split.md)      | Static/dynamic split for `/search` and `/drug/[rxcui]` | accepted |
 | 006                                     | URL-as-state over a client store                       | W4       |
 | 007                                     | Performance budgets + enforcement                      | W6       |
 | 008                                     | Contentful guides _(optional)_                         | W7       |
