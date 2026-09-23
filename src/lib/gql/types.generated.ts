@@ -50,7 +50,7 @@ export type Drug = {
   label: LabelResult;
   name: Scalars['String']['output'];
   packages: Array<Package>;
-  price?: Maybe<Price>;
+  price: PriceResult;
   priceHistory: PriceSeriesResult;
   rxcui: Scalars['ID']['output'];
   tty: Scalars['String']['output'];
@@ -95,7 +95,7 @@ export type Package = {
   __typename: 'Package';
   description: Scalars['String']['output'];
   ndc: Scalars['ID']['output'];
-  price?: Maybe<Price>;
+  price: PriceResult;
 };
 
 export type Price = {
@@ -120,6 +120,8 @@ export type PriceRange =
   | 'MAX'
   | 'QUARTER'
   | 'YEAR';
+
+export type PriceResult = Absent | Price | Unavailable;
 
 export type PriceSeries = {
   __typename: 'PriceSeries';

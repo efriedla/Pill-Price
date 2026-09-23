@@ -1,6 +1,10 @@
 # The drug page's first boundary (ADR-005 Q2 B): identity and price.
 # RxNorm properties plus the NADAC snapshot, and nothing from openFDA, so this
 # resolves without waiting on the slowest source.
+#
+# price is a PriceResult (ADR-010 amendment, 2026-09-23), so __typename is
+# selected: operation types only carry it where the query asks for it, and
+# without it the union cannot be discriminated.
 query DrugHeader($rxcui: ID!) {
   drug(rxcui: $rxcui) {
     rxcui
@@ -8,10 +12,22 @@ query DrugHeader($rxcui: ID!) {
     tty
     isGeneric
     price {
-      pricePerUnit
-      unit
-      effectiveDate
-      asOf
+      __typename
+      ... on Price {
+        pricePerUnit
+        unit
+        effectiveDate
+        asOf
+      }
+      ... on Absent {
+        reason
+        source
+      }
+      ... on Unavailable {
+        reason
+        source
+        retryable
+      }
     }
   }
 }

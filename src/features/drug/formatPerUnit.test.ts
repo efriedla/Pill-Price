@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { Price } from "@/lib/gql";
+import type { PriceResult } from "@/lib/gql";
 
-import { formatIsoDate, formatPerUnit, roundDecimalString } from "./formatPerUnit";
+import { formatPerUnit, roundDecimalString } from "./formatPerUnit";
 import type { DrugSummary } from "./types";
 
 /**
@@ -12,14 +12,11 @@ import type { DrugSummary } from "./types";
  * calling `Number()` on it and undoing that.
  */
 
-// `exactOptionalPropertyTypes` is on, so an explicitly-`undefined` `price` and
-// an absent one are different types. The spread models the absent key, which is
-// what a GraphQL response for an unpriced drug actually looks like.
-const summary = (price?: Price | null): DrugSummary => ({
+const summary = (price: PriceResult): DrugSummary => ({
   rxcui: "860975",
   name: "metformin hydrochloride 500 MG Extended Release Oral Tablet",
   isGeneric: true,
-  ...(price === undefined ? {} : { price }),
+  price,
 });
 
 const priced = (pricePerUnit: string): DrugSummary =>
@@ -82,48 +79,6 @@ describe("roundDecimalString", () => {
   });
 });
 
-describe("formatIsoDate", () => {
-  it("writes the date the way ui-spec §9 does", () => {
-    expect(formatIsoDate("2026-08-12")).toBe("Aug 12, 2026");
-  });
-
-  it("drops the leading zero from the day", () => {
-    expect(formatIsoDate("2026-08-01")).toBe("Aug 1, 2026");
-  });
-
-  it("handles the first and last month", () => {
-    expect(formatIsoDate("2026-01-31")).toBe("Jan 31, 2026");
-    expect(formatIsoDate("2026-12-25")).toBe("Dec 25, 2026");
-  });
-
-  // `new Date("2026-03-18")` is midnight UTC, so any viewer west of Greenwich
-  // would see the previous day. NADAC's effective_date is a calendar date with
-  // no zone; parsing by parts is what keeps it one.
-  it("does not shift the day in a western timezone", () => {
-    const original = process.env.TZ;
-    process.env.TZ = "America/Los_Angeles";
-    try {
-      expect(formatIsoDate("2026-03-18")).toBe("Mar 18, 2026");
-      expect(
-        new Date("2026-03-18").toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          timeZone: "America/Los_Angeles",
-        }),
-      ).toBe("Mar 17, 2026");
-    } finally {
-      process.env.TZ = original;
-    }
-  });
-
-  it("returns anything that is not an ISO calendar date untouched", () => {
-    expect(formatIsoDate("2026-13-01")).toBe("2026-13-01");
-    expect(formatIsoDate("2026-03-18T00:00:00Z")).toBe("2026-03-18T00:00:00Z");
-    expect(formatIsoDate("")).toBe("");
-  });
-});
-
 describe("formatPerUnit", () => {
   // ui-spec §9 line 120, character for character. If the copy rule changes,
   // this fails rather than drifting quietly.
@@ -153,8 +108,28 @@ describe("formatPerUnit", () => {
     );
   });
 
-  it("says there is no record rather than rendering nothing", () => {
-    expect(formatPerUnit(summary(null))).toBe("No NADAC record");
-    expect(formatPerUnit(summary())).toBe("No NADAC record");
+  // The server authors both sentences (ADR-010 amendment, 2026-09-23). This
+  // passes them through rather than restating them, so the copy has one home.
+  it("says NADAC publishes nothing, in the server's words", () => {
+    const reason =
+      "NADAC doesn't publish an acquisition cost for this drug (as of Sep 11, 2026).";
+    expect(
+      formatPerUnit(summary({ __typename: "Absent", reason, source: "NADAC" })),
+    ).toBe(reason);
+  });
+
+  it("says prices did not load, never that none exist", () => {
+    const reason =
+      "We couldn't load price data. This is on our side, not NADAC's. Everything else on this page is current.";
+    expect(
+      formatPerUnit(
+        summary({
+          __typename: "Unavailable",
+          reason,
+          source: "NADAC",
+          retryable: false,
+        }),
+      ),
+    ).toBe(reason);
   });
 });

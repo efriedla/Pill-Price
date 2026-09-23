@@ -23,7 +23,11 @@ import { loadPriceIndex, type PriceIndex } from "./prices";
  */
 export type GraphQLContext = {
   loaders: Loaders;
-  /** `null` before the first snapshot job has run — every price is absent. */
+  /**
+   * `null` when no snapshot is loaded. Every price then resolves to
+   * `Unavailable`, never `Absent`: not knowing is not "NADAC publishes none"
+   * (ADR-010 amendment, 2026-09-23).
+   */
   prices: PriceIndex | null;
 };
 

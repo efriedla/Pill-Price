@@ -61,14 +61,13 @@ describe("runQuery", () => {
       stubContext({ prices: { "00093726701": "0.08145", "00093726710": "0.09" } }),
     );
 
-    // No __typename anywhere: DrugHeader never selects it, and graphql-js adds
-    // none. The generated `DrugHeaderQuery` must say the same — it once claimed
+    // No __typename except where DrugHeader selects it (on the price union),
+    // and graphql-js adds none of its own. The generated `DrugHeaderQuery` must say the same — it once claimed
     // `__typename: 'Drug'` here, which is what `skipTypename` in codegen.ts
     // fixes. (Not `toStrictEqual`: graphql-js builds null-prototype objects,
     // so that fails on the prototype with "no visual difference".)
     expect(data).not.toHaveProperty("__typename");
     expect(data.drug).not.toHaveProperty("__typename");
-    expect(data.drug?.price).not.toHaveProperty("__typename");
     expect(data).toEqual({
       drug: {
         rxcui: "860975",
@@ -76,6 +75,9 @@ describe("runQuery", () => {
         tty: "SCD",
         isGeneric: true,
         price: {
+          // Selected on purpose: price is a union (ADR-010 amendment), and
+          // this is the one __typename the operation asks for.
+          __typename: "Price",
           // The cheaper package, digit for digit — a decimal string end to end.
           pricePerUnit: "0.08145",
           unit: "EA",

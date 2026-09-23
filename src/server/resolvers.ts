@@ -1,5 +1,7 @@
 import "server-only";
 
+import { formatIsoDate, utcCalendarDate } from "@/lib/calendar-date";
+
 import type { GraphQLContext } from "./context";
 import { UpstreamUnavailableError } from "./http";
 import { compareDecimal } from "./nadac/snapshot";
@@ -71,6 +73,33 @@ function degrade(error: unknown, source: string, sentence: string) {
   throw error;
 }
 
+/**
+ * The two price absences, in the author's words (ADR-010 amendment,
+ * 2026-09-23). Written once, because `Drug.price` and `Package.price` must
+ * never disagree about what "no price" means.
+ *
+ * `{date}` is the snapshot's `asOf`: the last time this side read NADAC's
+ * table, which is what "as of" claims. It is an instant, so it is reduced to
+ * its UTC calendar day by slicing, never through `Date`.
+ */
+function priceNotPublished(asOf: string, what: "drug" | "package") {
+  const date = formatIsoDate(utcCalendarDate(asOf));
+  return absent(
+    `NADAC doesn't publish an acquisition cost for this ${what} (as of ${date}).`,
+    "NADAC",
+  );
+}
+
+/**
+ * No snapshot is loaded. `retryable: false` because a retry cannot load a file
+ * that is not there, the same call `priceHistory` makes.
+ */
+const PRICES_NOT_LOADED = unavailable(
+  "We couldn't load price data. This is on our side, not NADAC's. Everything else on this page is current.",
+  "NADAC",
+  false,
+);
+
 export const resolvers = {
   /**
    * Unions cannot be executed without a type discriminator, and ADR-010's two
@@ -87,6 +116,7 @@ export const resolvers = {
   LabelResult: { __resolveType: resolveDegradable("Label") },
   AlternativesResult: { __resolveType: resolveDegradable("Alternatives") },
   PriceSeriesResult: { __resolveType: resolveDegradable("PriceSeries") },
+  PriceResult: { __resolveType: resolveDegradable("Price") },
   IngredientsResult: { __resolveType: resolveDegradable("Ingredients") },
   DoseFormResult: { __resolveType: resolveDegradable("DoseForm") },
 
@@ -133,17 +163,21 @@ export const resolvers = {
     /**
      * The drug's own price: the cheapest published across its packages.
      *
-     * Nullable, and **null is the typical case** — ~92% of packages have no
-     * published price. Under a snapshot that is not a cache miss: the table is
-     * complete, so null means "NADAC publishes nothing for this", full stop.
+     * **`Absent` is the typical case**: ~92% of packages have no published
+     * price. Under a loaded snapshot that is not a cache miss. The table is
+     * complete, so "not in it" means NADAC publishes nothing for this.
+     *
+     * **No snapshot is a different sentence.** It used to be the same `null`,
+     * which made a CI build (no snapshot) state "not published" as fact.
      */
     price: async (drug: DrugSource, _: unknown, ctx: GraphQLContext) => {
-      if (!ctx.prices) return null;
+      const prices = ctx.prices;
+      if (!prices) return PRICES_NOT_LOADED;
       const ndcs = await ctx.loaders.ndcs.load(drug.rxcui);
       const priced = ndcs
-        .map((ndc) => ctx.prices?.forNdc(ndc))
+        .map((ndc) => prices.forNdc(ndc))
         .filter((p) => p != null);
-      if (priced.length === 0) return null;
+      if (priced.length === 0) return priceNotPublished(prices.asOf, "drug");
       // NADAC prices a product rather than a package, so these are usually all
       // identical (§3.3). Taking the lowest is still the honest reduction when
       // they are not — and "usually" is doing less work than that comment
@@ -320,11 +354,12 @@ export const resolvers = {
   },
 
   Package: {
-    price: (
-      pkg: { ndc: string },
-      _: unknown,
-      ctx: GraphQLContext,
-    ) => ctx.prices?.forNdc(pkg.ndc) ?? null,
+    /** The same three states as `Drug.price`, from the same two helpers. */
+    price: (pkg: { ndc: string }, _: unknown, ctx: GraphQLContext) => {
+      const prices = ctx.prices;
+      if (!prices) return PRICES_NOT_LOADED;
+      return prices.forNdc(pkg.ndc) ?? priceNotPublished(prices.asOf, "package");
+    },
   },
 };
 

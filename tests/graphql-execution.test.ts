@@ -266,7 +266,7 @@ describe("the cheapest package, chosen without a float", () => {
   const ndcs = async () => ["A", "B", "C"];
 
   it("picks the lowest of packages that disagree", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
       ndcs,
       prices: { A: "0.64093", B: "0.53801", C: "0.58120" },
     });
@@ -277,7 +277,7 @@ describe("the cheapest package, chosen without a float", () => {
   it("orders by magnitude, not by string — 9.99 is cheaper than 10.00", async () => {
     // The shape a lexicographic comparison gets wrong: "10.00" sorts before
     // "9.99". compareDecimal compares integer-part length first.
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
       ndcs,
       prices: { A: "10.00", B: "9.99", C: "12.50" },
     });
@@ -285,7 +285,7 @@ describe("the cheapest package, chosen without a float", () => {
   });
 
   it("compares fractions of unequal length", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
       ndcs,
       prices: { A: "0.1", B: "0.09", C: "0.10000" },
     });
@@ -295,31 +295,92 @@ describe("the cheapest package, chosen without a float", () => {
   it("returns the price as published, digit for digit", async () => {
     // The reason none of this may round-trip through a float: 8.14515 is not
     // representable, and the page renders what NADAC published.
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
+    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
       ndcs: async () => ["A"],
       prices: { A: "8.14515" },
     });
     expect(res.data?.drug).toEqual({ price: { pricePerUnit: "8.14515" } });
   });
 
-  it("is null when no package is priced", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit } } }`, {
-      ndcs,
-      prices: { D: "0.10" },
+  it("is Absent, naming NADAC and the snapshot's day, when no package is priced", async () => {
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { __typename ... on Absent { reason source } } } }`,
+      { ndcs, prices: { D: "0.10" } },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      price: {
+        __typename: "Absent",
+        // asOf is 2026-09-14T03:00:00Z in the stub: the UTC day, sliced.
+        reason:
+          "NADAC doesn't publish an acquisition cost for this drug (as of Sep 14, 2026).",
+        source: "NADAC",
+      },
     });
-    expect(res.data?.drug).toEqual({ price: null });
   });
 });
 
-describe("prices before the first snapshot job has run", () => {
-  it("reports no price rather than failing", async () => {
-    // `prices: null` is a legitimate cold start, and ADR-009 makes an absent
-    // price a published fact rather than an error.
-    const res = await run(`{ drug(rxcui:"860975"){ price { pricePerUnit unit } } }`, {
+describe("prices with no snapshot loaded", () => {
+  // ADR-010 amendment, 2026-09-23. This test used to assert `price: null`,
+  // the same value as "NADAC publishes nothing", which is how a build without
+  // a snapshot would have prerendered a falsehood. Not knowing is its own
+  // member now, and it never claims anything about NADAC.
+  const NOT_LOADED = {
+    __typename: "Unavailable",
+    reason:
+      "We couldn't load price data. This is on our side, not NADAC's. Everything else on this page is current.",
+    source: "NADAC",
+    retryable: false,
+  };
+  const selection =
+    "__typename ... on Unavailable { reason source retryable } ... on Absent { reason }";
+
+  it("says prices did not load, rather than that none exist", async () => {
+    const res = await run(`{ drug(rxcui:"860975"){ price { ${selection} } } }`, {
       ndcs: async () => ["29300038901"],
     });
     expect(res.errors).toBeUndefined();
-    expect(res.data?.drug).toEqual({ price: null });
+    expect(res.data?.drug).toEqual({ price: NOT_LOADED });
+  });
+
+  it("does not offer a retry that cannot succeed", async () => {
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ... on Unavailable { retryable } } } }`,
+      { ndcs: async () => ["29300038901"] },
+    );
+    expect(res.data?.drug).toEqual({ price: { retryable: false } });
+  });
+
+  it("gives packages the same answer, so the two fields never disagree", async () => {
+    const res = await run(
+      `{ drug(rxcui:"860975"){ packages { price { ${selection} } } } }`,
+      { ndcs: async () => ["29300038901"] },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({ packages: [{ price: NOT_LOADED }] });
+  });
+});
+
+describe("Package.price", () => {
+  it("is the package's own price when published, and Absent when not", async () => {
+    const res = await run(
+      `{ drug(rxcui:"860975"){ packages { ndc price { __typename ... on Price { pricePerUnit } ... on Absent { reason } } } } }`,
+      { ndcs: async () => ["A", "B"], prices: { A: "0.10" } },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      packages: [
+        { ndc: "A", price: { __typename: "Price", pricePerUnit: "0.10" } },
+        {
+          ndc: "B",
+          price: {
+            __typename: "Absent",
+            reason:
+              "NADAC doesn't publish an acquisition cost for this package (as of Sep 14, 2026).",
+          },
+        },
+      ],
+    });
   });
 });
 
