@@ -313,3 +313,27 @@ answered.
 - openFDA's keyless quota is hit by CI builds.
 - A second consumer of the schema appears (ADR-004's revisit condition). That
   changes the weight on Q1.
+
+## Amendment, 2026-09-23: what a fallback shows
+
+**Status:** accepted. Decided by the author in conversation on 2026-09-23.
+Code-free under the amendment rule.
+
+Q2 B said each of the three fallbacks reserves its section's space. It did not
+say what fills that space. **A skeleton first. If the wait passes ~1.5 s, the
+skeleton gives way to one of the pill loading games (`PillShotLoader`,
+`PillSortLoader`) at the same size.**
+
+- **Why the delay.** A warm or prerendered page never shows a fallback, and a
+  cold one usually shows it for a few hundred milliseconds. A game that flashes
+  for 300 ms and disappears reads as the app working harder than it has to.
+  Past ~1.5 s the user is really waiting, and a game is better than a blank.
+- **Rejected: a game in every fallback immediately,** for the flash above, and
+  because the 1000 × 700 canvas does not fit the smaller sections.
+- **Rejected: a game in the label section only.** It's simpler, but a slow
+  search or a cold identity fetch would still be a bare skeleton.
+- **Committed to:** the swap never moves the layout (same box, same size). The
+  games already honour `prefers-reduced-motion`. They are client components, so
+  they load only when the timer fires, never as part of the static shell's
+  JavaScript. W6 measures the shell, and a game should not be in it.
+
