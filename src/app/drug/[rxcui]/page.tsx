@@ -51,11 +51,28 @@ async function loadDrugHeader(rxcui: string) {
   return runQuery(DrugHeaderDocument, { rxcui });
 }
 
-/** The second boundary's data. Cached for the same reasons, for a week. */
+/**
+ * The second boundary's data. Cached for a week, unless RxNorm was down.
+ *
+ * The resolvers turn an RxNorm outage into `Unavailable`, which is data, so a
+ * week-long cache would keep "we could not reach RxNorm" for a week, and a
+ * build during the outage would bake it into the static page. An outage gets
+ * the `seconds` profile instead, whose one-minute expiry keeps it out of the
+ * prerender (a dynamic hole, per the cacheLife docs): the static page holds
+ * the fallback, and the request-time render asks again.
+ */
 async function loadDrugVersions(rxcui: string) {
   "use cache";
-  cacheLife("weeks");
-  return runQuery(DrugVersionsDocument, { rxcui });
+  const result = await runQuery(DrugVersionsDocument, { rxcui });
+  const drug = result.drug;
+  const outage =
+    drug !== null &&
+    [drug.doseForm, drug.ingredients, drug.alternatives].some(
+      (field) => field.__typename === "Unavailable",
+    );
+  if (outage) cacheLife("seconds");
+  else cacheLife("weeks");
+  return result;
 }
 
 async function Header({ params }: { params: Params }) {
