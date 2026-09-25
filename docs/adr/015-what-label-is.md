@@ -1,10 +1,10 @@
 # ADR-015: What `Label` is (Q2)
 
-**Status:** proposed — options only, no decision
-**Date:** 2026-09-23
+**Status:** accepted
+**Date:** 2026-09-23 (options), 2026-09-24 (decided)
 
-<!-- Roadmap rule 3: the author owns this. Options only; the Decision section
-     is deliberately empty. Same shape as ADR-005, ADR-012 and ADR-013. -->
+<!-- Roadmap rule 3: the author owns this. Options in #79, decision here.
+     Same shape as ADR-012 (#59 options, #60 decision) and ADR-013. -->
 
 ## Context
 
@@ -94,8 +94,72 @@ carries no label text.
 
 ## Decision
 
-<!-- Yours. -->
+**Option A: the reference label, with a stated fallback.**
+
+The label boundary shows one document, chosen by this chain. The first step
+that finds a label wins:
+
+1. **A brand drug (SBD):** its own label.
+2. **A generic (SCD):** the NDA row among its own results.
+3. **A generic with no NDA row:** the label of its SBD twin (ADR-005
+   boundary 2 already fetches the twin).
+4. **Otherwise:** the most recent label with `is_original_packager`.
+
+Every step matches by RxCUI, never by name. The page always says which
+document it is showing and why it was chosen.
+
+### Checked before deciding (2026-09-24)
+
+- **Finding 3 holds, with one exception the copy must respect.** 21 CFR
+  314.94(a)(8)(iv) requires an ANDA's labeling to be "the same as the
+  labeling approved for the reference listed drug". The permitted differences
+  include **leaving out an indication that is protected by patent or
+  exclusivity** (a "carve-out"). So a brand label shown on a generic's page
+  can list a use that the generic's own label leaves out. "Generic labels
+  follow this one" is true. "Generic labels are identical to this one" is
+  not, and the page must not say it.
+- **Finding 4, measured: metformin ER reaches step 4.** Its SBD twin, 860977
+  (Glucophage XR), has **no label on openFDA** (by `openfda.rxcui`, and by
+  `brand_name` "Glucophage" and "Glucophage XR"). The brand has been
+  discontinued. So step 4 is the **ordinary** path for a generic whose brand
+  has left the market, not a rare edge. Its copy must not read as a fault,
+  the same rule as the dose-form `Absent` (Q7).
+- **Why "by RxCUI, never by name":** searching NDA labels by
+  `generic_name:"metformin"` returns 28 rows, and nearly all of them are
+  combination products (Janumet, Synjardy, Xigduo XR, and others). A
+  name-based step 2 would show a sitagliptin label on a metformin page.
+
+### Rejected
+
+- **B: newest original-packager label.** This picks one of 32 manufacturers by
+  date. It survives only as step 4, where the page says it is a pick.
+- **C: a count and a link.** It puts the boxed warning off-site, which
+  ui-spec §11 does not allow.
+- **D: merge.** Rejected in the options: it would mean authoring a label.
 
 ## Consequences
 
-<!-- Written once the decision is made. -->
+- **An SDL change (yours) before the boundary is built.** `Label` needs to
+  name the document and why it was chosen. At minimum that means: the
+  manufacturer, `effective_time` (a calendar date, not a `Date`), `spl_set_id`
+  for the DailyMed link, **which step of the chain chose it**, and the
+  sections the page renders, with the boxed warning first.
+  `Label.openFDALabel: String` goes away. The field names are yours to set.
+- **Copy (yours), one sentence per step.** The options' example, "Label:
+  Lipitor, from Viatris · updated Apr 15, 2024. Generic labels follow this
+  one.", was drafted by me and fits steps 1 to 3. Step 4 needs its own
+  sentence, one that says a manufacturer's label was chosen because no brand
+  label is published. It must not claim to be *the* label.
+- **Two openFDA round trips at most on the generic path** (the drug's own
+  rows, then the twin's). This happens in the label boundary, which already
+  streams last (ADR-005 Q2 B), so the header and the versions list are not
+  affected.
+- **Four tests for the chain, one per step,** using the three measured drugs:
+  Lipitor for step 1, atorvastatin generic for step 2, and metformin ER for
+  step 4. Step 3 has no measured example yet, so it needs a fixture.
+- **The build-time openFDA-failure test** (ADR-005 finding 7) ships in the
+  same PR as the boundary, as already noted above.
+- `LABEL_PAGE_SIZE = 25` stops being a placeholder. Step 2 must see every
+  row, and atorvastatin has 91. The query should filter by
+  `is_original_packager` and by application type in openFDA, rather than
+  pulling every page and filtering in our code.
