@@ -4,12 +4,18 @@ import { Suspense } from "react";
 
 import {
   AcquisitionCostNotice,
+  DrugLabel,
+  DrugLabelFallback,
   DrugVersions,
   DrugVersionsFallback,
   PriceHeader,
   PriceHeaderFallback,
 } from "@/features/drug";
-import { DrugHeaderDocument, DrugVersionsDocument } from "@/lib/gql/documents";
+import {
+  DrugHeaderDocument,
+  DrugLabelDocument,
+  DrugVersionsDocument,
+} from "@/lib/gql/documents";
 import { requireNadacSnapshot } from "@/server/prices";
 import { runQuery } from "@/server/run-query";
 
@@ -20,8 +26,7 @@ import { PRERENDERED_RXCUIS } from "./prerendered";
  *
  * The static shell is the page frame and the acquisition-cost notice. Each
  * section streams in behind its own boundary (Q2 B): identity and price, then
- * ingredients and brand/generic versions. The label is the third, still to
- * come.
+ * ingredients and brand/generic versions, then the label (ADR-015).
  */
 
 // Typed by hand rather than via the generated `PageProps<"/drug/[rxcui]">`,
@@ -75,6 +80,32 @@ async function loadDrugVersions(rxcui: string) {
   return result;
 }
 
+/**
+ * The third boundary's data, and the answer to ADR-005 finding 7.
+ *
+ * The resolver turns an unreachable openFDA into `Unavailable`, which is data,
+ * so a plain week-long cache would store it, and a build during an outage
+ * would bake "we could not reach openFDA" into the static page for a week.
+ * So the lifetime depends on the answer: a retryable `Unavailable` gets the
+ * `seconds` profile, whose 1-minute expiry keeps it out of the prerender
+ * entirely (a dynamic hole, per the cacheLife docs). The static page then
+ * holds the fallback, and the request-time render asks openFDA again.
+ * `npm run check:build-degradation` builds against a dead openFDA to prove it.
+ *
+ * `Absent` is settled, so it is cached for the week like a label.
+ */
+async function loadDrugLabel(rxcui: string) {
+  "use cache";
+  const result = await runQuery(DrugLabelDocument, { rxcui });
+  const label = result.drug?.label;
+  if (label?.__typename === "Unavailable" && label.retryable) {
+    cacheLife("seconds");
+  } else {
+    cacheLife("weeks");
+  }
+  return result;
+}
+
 async function Header({ params }: { params: Params }) {
   // Awaited inside the boundary, never above it: reading params in the page
   // itself would tie the App Shell to one URL (ADR-005 Q2).
@@ -94,6 +125,13 @@ async function Versions({ params }: { params: Params }) {
   return drug ? <DrugVersions drug={drug} /> : null;
 }
 
+/** A null drug is the header's to report, as with the versions. */
+async function Label({ params }: { params: Params }) {
+  const { rxcui } = await params;
+  const { drug } = await loadDrugLabel(rxcui);
+  return drug ? <DrugLabel drug={drug} /> : null;
+}
+
 export default function DrugPage({ params }: { params: Params }) {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-8">
@@ -103,6 +141,9 @@ export default function DrugPage({ params }: { params: Params }) {
       </Suspense>
       <Suspense fallback={<DrugVersionsFallback />}>
         <Versions params={params} />
+      </Suspense>
+      <Suspense fallback={<DrugLabelFallback />}>
+        <Label params={params} />
       </Suspense>
     </main>
   );

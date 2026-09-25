@@ -3,16 +3,10 @@ import Link from "next/link";
 import type { DrugVersionsQuery } from "@/lib/gql";
 
 import { PriceLine, type PriceLinePrice } from "./PriceLine";
+import { SECTION_HEADING } from "./sectionHeading";
 
 /** What `DrugVersions` selected for a drug that exists. */
 export type VersionsDrug = NonNullable<DrugVersionsQuery["drug"]>;
-
-/**
- * Small structural label: the one place letterspaced caps survive (design-tone
- * rule), marking a section quietly rather than announcing it.
- */
-const SECTION_HEADING =
-  "mb-6 text-step--1 font-semibold tracking-[0.12em] text-text-secondary uppercase";
 
 /**
  * The drug page's second boundary (ADR-005 Q2 B): what the drug is made of,
@@ -83,7 +77,9 @@ function Facts({ drug }: { drug: VersionsDrug }) {
  * then the information. A single version keeps its line in the card: there is
  * nothing repeated to collapse.
  */
-export function sharedAbsence(prices: readonly PriceLinePrice[]): string | null {
+export function sharedAbsence(
+  prices: readonly PriceLinePrice[],
+): string | null {
   if (prices.length < 2) return null;
   const [first] = prices;
   if (!first || first.__typename === "Price") return null;

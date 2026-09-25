@@ -59,6 +59,13 @@ questions, not two. The last three depend on the first.
    anything. **Not verified:** what the prerendered *page* does with it. A
    build during an openFDA outage may still bake a degraded label section into
    a static page. That needs a test, not an assumption.
+   **Measured 2026-09-25 (`npm run check:build-degradation`):** worse than
+   feared, then fixed. Next fails a prerender on any error thrown inside a
+   `use cache` function, caught or not, so an openFDA outage failed the
+   whole build, and at request time the thrown error arrived obfuscated, so
+   the label boundary errored instead of rendering `Unavailable`. Fixed in
+   #85 (outages cross the cache as values). Now the build succeeds, and the
+   static page holds the label fallback, with no outage sentence baked in.
 
 ## Q1 — How do Server Components reach the schema?
 
