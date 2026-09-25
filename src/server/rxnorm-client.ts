@@ -11,8 +11,15 @@ import {
 } from "./upstream/rxnorm.schema";
 import { parseJsonBody } from "./upstream/parse";
 
-/** Upstream: RxNorm. Drug concepts, ingredients, related products. */
-export const RXNORM_BASE_URL = "https://rxnav.nlm.nih.gov/REST";
+/**
+ * Upstream: RxNorm. Drug concepts, ingredients, related products.
+ *
+ * `RXNORM_BASE_URL` in the environment overrides it, like openFDA's, only to
+ * run the app against an RxNorm that refuses connections and see the error
+ * pages it forces. Nothing in a deploy sets it.
+ */
+export const RXNORM_BASE_URL =
+  process.env.RXNORM_BASE_URL ?? "https://rxnav.nlm.nih.gov/REST";
 
 /**
  * Every call goes through ADR-011's policy: a 2.5 s budget per attempt, two
