@@ -153,10 +153,10 @@ The clamped card is the right pattern. Real FDA label data will break a naive ve
 5. Warnings and cautions
 6. Adverse reactions
 7. Drug interactions
-8. Inactive ingredients
-9. Storage and handling
 
 Sections absent from the label are omitted entirely — never rendered empty.
+
+*Amended 2026-09-25 (ADR-015): "Inactive ingredients" and "Storage and handling" are dropped.* openFDA fills `inactive_ingredient` and `storage_and_handling` on over-the-counter labels. On prescription labels the same facts sit in Description and How supplied. Measured across the 169 labels for atorvastatin 10 mg (617312), Lipitor (617314) and metformin ER 500 mg (860975): `inactive_ingredient` was on 0 of them and `storage_and_handling` on 19. `how_supplied` was on 164, so storage facts usually reach the page through it anyway. Neither kind is in the schema, so adding one back later is a non-breaking change. Removing one after clients depend on it would not be. Rejected: keeping both and extracting them from Description and How supplied by parsing free text; keeping both and reading the OTC fields as they are, which would leave them missing on nearly every page this app serves.
 
 **Rules:**
 
