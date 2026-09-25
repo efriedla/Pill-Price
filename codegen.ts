@@ -73,6 +73,10 @@ const config: CodegenConfig = {
         // compile. That keeps ADR-010's guarantee at the page, not just at the
         // schema.
         skipTypename: true,
+        // Enums are schema types. Without this the operations file declares
+        // its own copy of every enum a query selects (LabelChoice was the
+        // first), and index.ts's two star exports collide on the name.
+        importSchemaTypesFrom: "src/lib/gql/types.generated.ts",
       },
     },
   },

@@ -1,0 +1,28 @@
+# The drug page's third boundary (ADR-005 Q2 B): the label, chosen by
+# ADR-015's chain. Streams last. On the generic path it costs up to three
+# openFDA searches and one RxNorm call.
+query DrugLabel($rxcui: ID!) {
+  drug(rxcui: $rxcui) {
+    label {
+      __typename
+      ... on Label {
+        setId
+        productName
+        manufacturer
+        effectiveDate
+        chosenBy
+        sections {
+          kind
+          paragraphs
+        }
+      }
+      ... on Absent {
+        reason
+      }
+      ... on Unavailable {
+        reason
+        retryable
+      }
+    }
+  }
+}

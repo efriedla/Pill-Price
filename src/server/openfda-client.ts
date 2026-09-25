@@ -5,7 +5,14 @@ import { parseJsonBody } from "./upstream/parse";
 import { parseLabelSearch, type LabelOutcome } from "./upstream/openfda.schema";
 
 /** Upstream: openFDA. Labels, NDC, manufacturer, pharmacologic class. */
-export const OPENFDA_BASE_URL = "https://api.fda.gov";
+/**
+ * `OPENFDA_BASE_URL` in the environment overrides it, for one caller only:
+ * `scripts/check-build-degradation.ts`, which builds the app against an
+ * openFDA that refuses every connection (ADR-005 finding 7). Nothing in a
+ * deploy sets it.
+ */
+export const OPENFDA_BASE_URL =
+  process.env.OPENFDA_BASE_URL ?? "https://api.fda.gov";
 
 /**
  * The two label searches ADR-015's chain needs. Each is filtered and sorted by
