@@ -2,7 +2,7 @@ import "server-only";
 
 import { cacheLife } from "next/cache";
 
-import { fetchLabelsForRxcui } from "./openfda-client";
+import { fetchLabels, type LabelQuery } from "./openfda-client";
 import {
   fetchAllRelated,
   fetchDrugProperties,
@@ -57,8 +57,12 @@ export async function cachedAllRelated(rxcui: string) {
   return fetchAllRelated(rxcui);
 }
 
-export async function cachedLabels(rxcui: string, tty: string) {
+export async function cachedLabels(
+  rxcui: string,
+  tty: string,
+  query: LabelQuery,
+) {
   "use cache";
   cacheLife("weeks");
-  return fetchLabelsForRxcui(rxcui, tty);
+  return fetchLabels(rxcui, tty, query);
 }

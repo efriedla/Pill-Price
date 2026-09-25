@@ -32,6 +32,8 @@ export const openFdaMetaSchema = z.object({
   substance_name: z.array(z.string()).optional().default([]),
   spl_id: z.array(z.string()).optional().default([]),
   application_number: z.array(z.string()).optional().default([]),
+  // ADR-015 step 4. An array of one boolean, like every other openfda field.
+  is_original_packager: z.array(z.boolean()).optional().default([]),
 });
 
 /**
@@ -44,8 +46,11 @@ export const openFdaMetaSchema = z.object({
  * checked them, and keeps a new upstream field from failing the parse.
  *
  * `effective_time` is `YYYYMMDD`, not ISO — deliberately **not** run through
- * `isoDateString`, which would reject every real response. It is the field a
- * "newest label" rule would sort on if **Q2** lands that way.
+ * `isoDateString`, which would reject every real response. ADR-015's step 4
+ * sorts on it, in openFDA's query rather than here.
+ *
+ * The section fields are ui-spec §11's seven. `warnings` is the pre-2006 name
+ * for `warnings_and_cautions`: 13 of 78 metformin ER labels still use it.
  */
 export const labelResultSchema = z
   .object({
@@ -59,8 +64,11 @@ export const labelResultSchema = z
     // per-field defaults still apply. `.default({})` would have to name every
     // field, and would drift the moment one is added.
     openfda: openFdaMetaSchema.prefault({}),
+    boxed_warning: z.array(z.string()).optional().default([]),
     indications_and_usage: z.array(z.string()).optional().default([]),
+    warnings_and_cautions: z.array(z.string()).optional().default([]),
     warnings: z.array(z.string()).optional().default([]),
+    drug_interactions: z.array(z.string()).optional().default([]),
     dosage_and_administration: z.array(z.string()).optional().default([]),
     adverse_reactions: z.array(z.string()).optional().default([]),
     contraindications: z.array(z.string()).optional().default([]),
