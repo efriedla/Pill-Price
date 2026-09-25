@@ -1,4 +1,4 @@
-import { Button } from "@/ui/Button";
+import { SearchBoxFallback } from "@/features/search";
 import { Card } from "@/ui/Card";
 
 export default function Home() {
@@ -22,9 +22,8 @@ export default function Home() {
         </p>
       </Card>
 
-      <div>
-        <Button disabled>Search — coming in week 3</Button>
-      </div>
+      {/* The plain GET form: it submits to /search, which takes over from there. */}
+      <SearchBoxFallback />
     </main>
   );
 }
