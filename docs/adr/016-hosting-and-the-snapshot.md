@@ -1,10 +1,10 @@
 # ADR-016: Where the app runs, and where the NADAC snapshot lives
 
-**Status:** proposed
-**Date:** 2026-09-25 (options)
+**Status:** accepted
+**Date:** 2026-09-25 (options and decision)
 
-<!-- Roadmap rule 3: the author owns this. Options here, decision in a
-     follow-up PR. Same shape as ADR-012, ADR-013 and ADR-015. -->
+<!-- Roadmap rule 3: the author owns this. Options in #89, decision here.
+     Same shape as ADR-012, ADR-013 and ADR-015. -->
 
 ## Context
 
@@ -109,13 +109,47 @@ The job runs on the server, against its own disk.
   or a migration done carelessly, is permanent data loss, the one failure
   ADR-012's no-backfill decision cannot absorb.
 
-## My recommendation
+## My recommendation (taken)
 
 **Q1 A with Q2 A.** Vercel runs the rendering model this repo was built
 around, as its default, and preview deploys suit the PR-per-decision
 history. Git is the only option that makes the unrecoverable file durable and
 auditable at the same time, and it costs a few tens of MB a year. The cost I
 would be accepting: W6 measures Vercel's cache rather than a process I run.
+
+## Decision
+
+**Q1 A, Q2 A: Vercel, and the snapshot in git on a `data` branch.** Decided
+2026-09-25 by the author, in these words: "go with vercel and the data
+branch".
+
+1. **The weekly job runs in GitHub Actions**
+   (`.github/workflows/snapshot-nadac.yml`), Fridays 09:00 UTC and on demand.
+   It restores last week's file from `data`, runs `snapshot:nadac`
+   (read-merge-write, ADR-012), and commits the result to `data` as one dated
+   commit. `data` holds only `nadac-snapshot.json` and is never force-pushed:
+   its history is the only copy of the price series.
+2. **A new commit redeploys** through a Vercel deploy hook, stored as the
+   `VERCEL_DEPLOY_HOOK_URL` secret. The redeploy is also the restart
+   `loadPriceIndex` needs.
+3. **The deploy build fetches the snapshot first.** `vercel.json` sets the
+   build command to `npm run build:deploy`, which downloads the file from
+   `NADAC_SNAPSHOT_URL` (the raw URL of `data`) and refuses one that is
+   missing, malformed or marked incomplete. `REQUIRE_NADAC_SNAPSHOT=1` stays
+   set in the deploy as the second guard.
+4. **Every server function carries the file.** `outputFileTracingIncludes`
+   names it for `/drug/[rxcui]`, `/search` and `/api/graphql`, since every
+   page query loads the price index.
+
+### Rejected
+
+- **Q1 B (a Node server with a volume):** W6 would measure a process we run,
+  which is its real advantage. But it makes us the operator, and it puts the
+  only copy of the history on one disk unless Q2 is also git.
+- **Q2 B (object storage):** a new service and secret for a file that git
+  keeps durable and dated for free.
+- **Q2 C (the host's volume):** the single-copy risk ADR-012's no-backfill
+  decision cannot absorb.
 
 ## What any answer forces
 

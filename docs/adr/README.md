@@ -20,7 +20,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [013](013-scope-under-schedule.md)      | What ships, now that the calendar and the roadmap disagree | accepted |
 | [014](014-price-history-read-path.md)   | What `Drug.priceHistory` actually returns                  | proposed |
 | [015](015-what-label-is.md)            | What `Label` is (Q2)                                        | accepted |
-| [016](016-hosting-and-the-snapshot.md) | Where the app runs, and where the NADAC snapshot lives      | proposed |
+| [016](016-hosting-and-the-snapshot.md) | Where the app runs, and where the NADAC snapshot lives      | accepted |
 
 ## What the W1 scaffold assumed, and where it landed
 
