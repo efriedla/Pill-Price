@@ -1,0 +1,11 @@
+# /search's results (ADR-005 Q4 A): server-rendered, the URL is the only
+# state. Names and brand/generic only. A price per result would be one NDC
+# lookup each, and "metformin" returns 134 products (measured 2026-09-25);
+# the price lives on the drug page, one click away.
+query DrugSearch($term: String!) {
+  search(term: $term) {
+    rxcui
+    name
+    isGeneric
+  }
+}
