@@ -4,6 +4,7 @@ import { formatIsoDate, utcCalendarDate } from "@/lib/calendar-date";
 
 import type { GraphQLContext } from "./context";
 import { UpstreamUnavailableError } from "./http";
+import { chooseLabel } from "./label";
 import { compareDecimal } from "./nadac/snapshot";
 import { isLabelQueryableTty } from "./openfda-client";
 import { searchDrugs } from "./rxnorm-client";
@@ -237,20 +238,13 @@ export const resolvers = {
     ) => {
       try {
         const groups = await ctx.loaders.related.load(drug.rxcui);
-        const concepts = selectAlternatives(
-          groups,
-          kind ?? "ALL",
-          drug.rxcui,
-        );
+        const concepts = selectAlternatives(groups, kind ?? "ALL", drug.rxcui);
         // Never an empty Alternatives: an empty list and "RxNorm found none"
         // are two encodings of the same thing, and a client would render one of
         // them as nothing. ADR-010 forbids exactly that.
         return concepts.length > 0
           ? { drugs: concepts }
-          : absent(
-              "RxNorm lists no other products for this drug.",
-              "RxNorm",
-            );
+          : absent("RxNorm lists no other products for this drug.", "RxNorm");
       } catch (error) {
         return degrade(
           error,
@@ -314,18 +308,17 @@ export const resolvers = {
     },
 
     /**
-     * The label.
+     * The label: one document, chosen by ADR-015's chain (see `./label`).
      *
      * The TTY guard runs *before* the request (ADR-010): openFDA's 404 is
      * byte-identical for "no label" and "wrong kind of thing", so a non-product
      * TTY is answered here rather than asked about — asking would produce a 404
      * we would have no right to read as absent.
      *
-     * **Q2 is deferred, and this is where it bites.** openFDA returns up to 91
-     * SPLs from 55 labelers for one drug, and which of them `Label` names is
-     * unanswered — so `openFDALabel` stays null rather than picking one
-     * arbitrarily. Reporting that a label *exists* is honest; claiming to have
-     * "the" label would not be.
+     * The chain reads RxNorm too, for step 3's brand twin, so an outage can
+     * come from either source and the sentence names whichever one it was.
+     * RxNorm being down does not fall through to step 4: that step's copy says
+     * no brand label is published, which we would not know.
      */
     label: async (drug: DrugSource, _: unknown, ctx: GraphQLContext) => {
       if (!isLabelQueryableTty(drug.tty)) {
@@ -335,15 +328,30 @@ export const resolvers = {
         );
       }
       try {
-        const outcome = await ctx.loaders.label.load({
-          rxcui: drug.rxcui,
-          tty: drug.tty,
+        const label = await chooseLabel(drug, {
+          search: (rxcui, tty, query) =>
+            ctx.loaders.label.load({ rxcui, tty, query }),
+          brandTwins: async () =>
+            selectAlternatives(
+              await ctx.loaders.related.load(drug.rxcui),
+              "BRAND",
+              drug.rxcui,
+            ),
         });
-        if (outcome === null || outcome.kind === "notFound") {
-          return absent("openFDA has no label for this drug.", "openFDA");
-        }
-        return { openFDALabel: null };
+        return (
+          label ?? absent("openFDA has no label for this drug.", "openFDA")
+        );
       } catch (error) {
+        if (
+          error instanceof UpstreamUnavailableError &&
+          error.source === "rxnorm"
+        ) {
+          return degrade(
+            error,
+            "RxNorm",
+            "We could not reach RxNorm to find this drug's brand version.",
+          );
+        }
         return degrade(
           error,
           "openFDA",
@@ -358,7 +366,9 @@ export const resolvers = {
     price: (pkg: { ndc: string }, _: unknown, ctx: GraphQLContext) => {
       const prices = ctx.prices;
       if (!prices) return PRICES_NOT_LOADED;
-      return prices.forNdc(pkg.ndc) ?? priceNotPublished(prices.asOf, "package");
+      return (
+        prices.forNdc(pkg.ndc) ?? priceNotPublished(prices.asOf, "package")
+      );
     },
   },
 };

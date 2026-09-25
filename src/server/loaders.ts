@@ -3,7 +3,7 @@ import "server-only";
 import DataLoader from "dataloader";
 
 import type { HttpDeps } from "./http";
-import { fetchLabelsForRxcui } from "./openfda-client";
+import { fetchLabels, type LabelQuery } from "./openfda-client";
 import {
   fetchAllRelated,
   fetchDrugProperties,
@@ -59,8 +59,11 @@ async function perKey<K, V>(
   );
 }
 
-/** Composite key for the label loader: openFDA needs the TTY to be asked at all. */
-export type LabelKey = { rxcui: string; tty: string };
+/**
+ * Composite key for the label loader: openFDA needs the TTY to be asked at
+ * all, and ADR-015's chain asks one of two searches per drug.
+ */
+export type LabelKey = { rxcui: string; tty: string; query: LabelQuery };
 
 export type Loaders = {
   properties: DataLoader<string, ConceptProperties | null>;
@@ -84,7 +87,11 @@ export type Fetchers = {
   related: (
     rxcui: string,
   ) => Promise<{ tty: string; concepts: ConceptProperties[] }[]>;
-  label: (rxcui: string, tty: string) => Promise<LabelOutcome | null>;
+  label: (
+    rxcui: string,
+    tty: string,
+    query: LabelQuery,
+  ) => Promise<LabelOutcome | null>;
 };
 
 export function createLoaders(
@@ -95,7 +102,7 @@ export function createLoaders(
     properties: (rxcui) => fetchDrugProperties(rxcui, deps),
     ndcs: (rxcui) => fetchNdcs(rxcui, deps),
     related: (rxcui) => fetchAllRelated(rxcui, deps),
-    label: (rxcui, tty) => fetchLabelsForRxcui(rxcui, tty, deps),
+    label: (rxcui, tty, query) => fetchLabels(rxcui, tty, query, deps),
   };
 
   return {
@@ -113,13 +120,13 @@ export function createLoaders(
     >((rxcuis) => perKey(rxcuis, (rxcui) => f.related(rxcui))),
 
     /**
-     * Keyed by rxcui *and* tty, because the TTY assertion is a precondition of
+     * Keyed by rxcui, tty and query, because the TTY assertion is a precondition of
      * asking at all (ADR-010). `cacheKeyFn` is required: without it DataLoader
      * compares object keys by identity and every call is a cache miss.
      */
     label: new DataLoader<LabelKey, LabelOutcome | null, string>(
-      (keys) => perKey(keys, (k) => f.label(k.rxcui, k.tty)),
-      { cacheKeyFn: (k) => `${k.rxcui}:${k.tty}` },
+      (keys) => perKey(keys, (k) => f.label(k.rxcui, k.tty, k.query)),
+      { cacheKeyFn: (k) => `${k.rxcui}:${k.tty}:${k.query}` },
     ),
   };
 }

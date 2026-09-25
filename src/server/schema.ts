@@ -96,10 +96,50 @@ export const typeDefs = /* GraphQL */ `
     ALL
   }
 
+  # ADR-015, Option A. One document, chosen by a four-step chain. The page
+  # always says which document it shows and why, so the type names both.
   type Label {
-    openFDALabel: String
-    # DECIDE: which of the 78 SPLs this is — Q2. Whatever the answer, this type
-    # needs a field naming it, or the UI claims "the label" without grounds.
+    setId: ID! # SPL set_id; the DailyMed link is built from it
+    productName: String! # e.g. "Lipitor", or the generic name on step 4
+    manufacturer: String!
+    # A calendar date, ISO. openFDA ships "20240415"; it is reformatted by
+    # slicing, never through Date, which moves it a day west of UTC.
+    effectiveDate: String!
+    chosenBy: LabelChoice!
+    # In ui-spec 11 order, boxed warning first. A kind the label does not have
+    # is left out, never sent empty.
+    sections: [LabelSection!]!
+  }
+
+  # Which step of the chain chose the label. Closed, because only the server
+  # produces it: a fifth value would be a new step, which is a new decision.
+  # The sentence for each is the UI's, so the copy is not buried in a resolver.
+  enum LabelChoice {
+    OWN_LABEL # step 1: a brand drug's own label
+    REFERENCE_IN_RESULTS # step 2: a generic's rows include the NDA/BLA label
+    BRAND_VERSION # step 3: the label of the generic's brand twin
+    # Step 4: the newest label from an original manufacturer. The ordinary
+    # path for a generic whose brand has left the market (metformin ER), so
+    # its copy must not read as a fault, and must not claim to be the label.
+    ORIGINAL_PACKAGER
+  }
+
+  # Seven kinds, not ui-spec's original nine: inactive ingredients and storage
+  # are over-the-counter fields (ui-spec 11, amended 2026-09-25). Adding one
+  # back is non-breaking; removing one would not be.
+  enum LabelSectionKind {
+    BOXED_WARNING
+    INDICATIONS_AND_USAGE
+    DOSAGE_AND_ADMINISTRATION
+    CONTRAINDICATIONS
+    WARNINGS_AND_CAUTIONS # older labels call it warnings; both map here
+    ADVERSE_REACTIONS
+    DRUG_INTERACTIONS
+  }
+
+  type LabelSection {
+    kind: LabelSectionKind!
+    paragraphs: [String!]! # never empty; an empty section is left out
   }
 
   # ADR-010. A degradable field carries its own state as a union, so "the

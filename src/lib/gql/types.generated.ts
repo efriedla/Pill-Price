@@ -86,10 +86,36 @@ export type IngredientsResult = Absent | Ingredients | Unavailable;
 
 export type Label = {
   __typename: 'Label';
-  openFDALabel?: Maybe<Scalars['String']['output']>;
+  chosenBy: LabelChoice;
+  effectiveDate: Scalars['String']['output'];
+  manufacturer: Scalars['String']['output'];
+  productName: Scalars['String']['output'];
+  sections: Array<LabelSection>;
+  setId: Scalars['ID']['output'];
 };
 
+export type LabelChoice =
+  | 'BRAND_VERSION'
+  | 'ORIGINAL_PACKAGER'
+  | 'OWN_LABEL'
+  | 'REFERENCE_IN_RESULTS';
+
 export type LabelResult = Absent | Label | Unavailable;
+
+export type LabelSection = {
+  __typename: 'LabelSection';
+  kind: LabelSectionKind;
+  paragraphs: Array<Scalars['String']['output']>;
+};
+
+export type LabelSectionKind =
+  | 'ADVERSE_REACTIONS'
+  | 'BOXED_WARNING'
+  | 'CONTRAINDICATIONS'
+  | 'DOSAGE_AND_ADMINISTRATION'
+  | 'DRUG_INTERACTIONS'
+  | 'INDICATIONS_AND_USAGE'
+  | 'WARNINGS_AND_CAUTIONS';
 
 export type Package = {
   __typename: 'Package';
