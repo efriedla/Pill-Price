@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { UpstreamUnavailableError } from "@/server/http";
 import { resolvers } from "@/server/resolvers";
 import { typeDefs } from "@/server/schema";
+import { labelResultSchema } from "@/server/upstream/openfda.schema";
 
 /**
  * The first tests that execute a real GraphQL query against the real SDL and
@@ -35,7 +36,7 @@ const drug = {
 };
 
 type LoaderStubs = {
-  label?: () => Promise<unknown>;
+  label?: (key?: unknown) => Promise<unknown>;
   related?: () => Promise<{ tty: string; concepts: unknown[] }[]>;
   ndcs?: () => Promise<string[]>;
   /** NDC -> per-unit price, as published. Absent NDCs are unpriced. */
@@ -76,7 +77,9 @@ const run = (source: string, stubs: LoaderStubs = {}) =>
 
 describe("executing a real query", () => {
   it("resolves identity fields off the RxNorm concept", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ rxcui name tty isGeneric } }`);
+    const res = await run(
+      `{ drug(rxcui:"860975"){ rxcui name tty isGeneric } }`,
+    );
     expect(res.errors).toBeUndefined();
     expect(res.data?.drug).toEqual({
       rxcui: "860975",
@@ -95,7 +98,10 @@ describe("executing a real query", () => {
       source: `{ drug(rxcui:"99999999"){ rxcui } }`,
       contextValue: {
         ...context(),
-        loaders: { ...context().loaders, properties: { load: async () => null } },
+        loaders: {
+          ...context().loaders,
+          properties: { load: async () => null },
+        },
       },
     });
     expect(res.errors).toBeUndefined();
@@ -108,7 +114,7 @@ describe("ADR-010's taxonomy, as a client receives it", () => {
     drug(rxcui:"860975"){
       label {
         __typename
-        ... on Label { openFDALabel }
+        ... on Label { setId productName manufacturer effectiveDate chosenBy sections { kind paragraphs } }
         ... on Absent { reason source }
         ... on Unavailable { reason source retryable }
       }
@@ -160,11 +166,11 @@ describe("ADR-010's taxonomy, as a client receives it", () => {
       {
         label: async () => {
           throw new UpstreamUnavailableError(
-          "openfda",
-          "https://api.fda.gov/drug/label.json",
-          2,
-          "timeout",
-        );
+            "openfda",
+            "https://api.fda.gov/drug/label.json",
+            2,
+            "timeout",
+          );
         },
       },
     );
@@ -173,6 +179,77 @@ describe("ADR-010's taxonomy, as a client receives it", () => {
       rxcui: "860975",
       name: drug.name,
       label: { __typename: "Unavailable" },
+    });
+  });
+
+  it("resolves a label that names the document and why it was chosen", async () => {
+    // ADR-015 step 4, metformin ER's ordinary path: no reference row, a brand
+    // twin with no label, then the newest original packager's.
+    const res = await run(labelQuery, {
+      related: async () => [
+        {
+          tty: "SBD",
+          concepts: [{ rxcui: "860977", tty: "SBD", name: "Glucophage XR" }],
+        },
+      ],
+      label: async (key?: unknown) => {
+        const { rxcui, query } = key as { rxcui: string; query: string };
+        if (rxcui !== "860975" || query !== "originalPackager") return null;
+        return {
+          kind: "labels",
+          total: 1,
+          results: [
+            labelResultSchema.parse({
+              set_id: "granules-set",
+              effective_time: "20260717",
+              openfda: {
+                manufacturer_name: ["Granules India Ltd"],
+                generic_name: ["metformin hydrochloride"],
+                is_original_packager: [true],
+              },
+              boxed_warning: ["WARNING: LACTIC ACIDOSIS"],
+            }),
+          ],
+        };
+      },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      label: {
+        __typename: "Label",
+        setId: "granules-set",
+        productName: "metformin hydrochloride",
+        manufacturer: "Granules India Ltd",
+        effectiveDate: "2026-07-17",
+        chosenBy: "ORIGINAL_PACKAGER",
+        sections: [
+          { kind: "BOXED_WARNING", paragraphs: ["WARNING: LACTIC ACIDOSIS"] },
+        ],
+      },
+    });
+  });
+
+  it("names RxNorm, not openFDA, when the brand-twin lookup is what failed", async () => {
+    // And does not fall through to step 4: that step's copy says no brand
+    // label is published, which with RxNorm down we would not know.
+    const res = await run(labelQuery, {
+      related: async () => {
+        throw new UpstreamUnavailableError(
+          "rxnorm",
+          "https://rxnav.nlm.nih.gov/REST/rxcui/860975/allrelated.json",
+          2,
+          "timeout",
+        );
+      },
+    });
+    expect(res.errors).toBeUndefined();
+    expect(res.data?.drug).toEqual({
+      label: {
+        __typename: "Unavailable",
+        reason: "We could not reach RxNorm to find this drug's brand version.",
+        source: "RxNorm",
+        retryable: true,
+      },
     });
   });
 
@@ -266,10 +343,13 @@ describe("the cheapest package, chosen without a float", () => {
   const ndcs = async () => ["A", "B", "C"];
 
   it("picks the lowest of packages that disagree", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
-      ndcs,
-      prices: { A: "0.64093", B: "0.53801", C: "0.58120" },
-    });
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`,
+      {
+        ndcs,
+        prices: { A: "0.64093", B: "0.53801", C: "0.58120" },
+      },
+    );
     expect(res.errors).toBeUndefined();
     expect(res.data?.drug).toEqual({ price: { pricePerUnit: "0.53801" } });
   });
@@ -277,28 +357,37 @@ describe("the cheapest package, chosen without a float", () => {
   it("orders by magnitude, not by string — 9.99 is cheaper than 10.00", async () => {
     // The shape a lexicographic comparison gets wrong: "10.00" sorts before
     // "9.99". compareDecimal compares integer-part length first.
-    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
-      ndcs,
-      prices: { A: "10.00", B: "9.99", C: "12.50" },
-    });
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`,
+      {
+        ndcs,
+        prices: { A: "10.00", B: "9.99", C: "12.50" },
+      },
+    );
     expect(res.data?.drug).toEqual({ price: { pricePerUnit: "9.99" } });
   });
 
   it("compares fractions of unequal length", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
-      ndcs,
-      prices: { A: "0.1", B: "0.09", C: "0.10000" },
-    });
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`,
+      {
+        ndcs,
+        prices: { A: "0.1", B: "0.09", C: "0.10000" },
+      },
+    );
     expect(res.data?.drug).toEqual({ price: { pricePerUnit: "0.09" } });
   });
 
   it("returns the price as published, digit for digit", async () => {
     // The reason none of this may round-trip through a float: 8.14515 is not
     // representable, and the page renders what NADAC published.
-    const res = await run(`{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`, {
-      ndcs: async () => ["A"],
-      prices: { A: "8.14515" },
-    });
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ... on Price { pricePerUnit } } } }`,
+      {
+        ndcs: async () => ["A"],
+        prices: { A: "8.14515" },
+      },
+    );
     expect(res.data?.drug).toEqual({ price: { pricePerUnit: "8.14515" } });
   });
 
@@ -336,9 +425,12 @@ describe("prices with no snapshot loaded", () => {
     "__typename ... on Unavailable { reason source retryable } ... on Absent { reason }";
 
   it("says prices did not load, rather than that none exist", async () => {
-    const res = await run(`{ drug(rxcui:"860975"){ price { ${selection} } } }`, {
-      ndcs: async () => ["29300038901"],
-    });
+    const res = await run(
+      `{ drug(rxcui:"860975"){ price { ${selection} } } }`,
+      {
+        ndcs: async () => ["29300038901"],
+      },
+    );
     expect(res.errors).toBeUndefined();
     expect(res.data?.drug).toEqual({ price: NOT_LOADED });
   });
@@ -423,7 +515,11 @@ describe("Q7's identity fields", () => {
         __typename: "Ingredients",
         ingredients: [{ rxcui: "6809", name: "metformin" }],
       },
-      doseForm: { __typename: "DoseForm", rxcui: "316945", name: "Oral Tablet" },
+      doseForm: {
+        __typename: "DoseForm",
+        rxcui: "316945",
+        name: "Oral Tablet",
+      },
     });
     // The stub stands in for the DataLoader, so this asserts the resolvers
     // share one load rather than that the loader batches.

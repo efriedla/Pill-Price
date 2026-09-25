@@ -85,8 +85,8 @@ describe("request-scoped deduplication", () => {
     const loaders = createLoaders({ fetch: fn, sleep: async () => {} });
 
     await Promise.all([
-      loaders.label.load({ rxcui: "617314", tty: "SCD" }),
-      loaders.label.load({ rxcui: "617314", tty: "SCD" }),
+      loaders.label.load({ rxcui: "617314", tty: "SCD", query: "reference" }),
+      loaders.label.load({ rxcui: "617314", tty: "SCD", query: "reference" }),
     ]);
 
     expect(urls).toHaveLength(1);

@@ -77,7 +77,7 @@ describe("everything healthy", () => {
     const [props, ndcs, label] = await Promise.all([
       loaders.properties.load(RXCUI),
       loaders.ndcs.load(RXCUI),
-      loaders.label.load({ rxcui: RXCUI, tty: TTY }),
+      loaders.label.load({ rxcui: RXCUI, tty: TTY, query: "reference" }),
     ]);
 
     expect(props?.tty).toBe(TTY);
@@ -97,7 +97,7 @@ describe("kill openFDA — the page keeps its name, packages and alternatives", 
       loaders.properties.load(RXCUI),
       loaders.ndcs.load(RXCUI),
       loaders.related.load(RXCUI),
-      loaders.label.load({ rxcui: RXCUI, tty: TTY }),
+      loaders.label.load({ rxcui: RXCUI, tty: TTY, query: "reference" }),
     ]);
 
     // ADR-010: enrichment is always partial. openFDA supplies the label, not
@@ -117,7 +117,7 @@ describe("kill openFDA — the page keeps its name, packages and alternatives", 
 
     const loaders = createLoaders(deps);
     const err = await loaders.label
-      .load({ rxcui: RXCUI, tty: TTY })
+      .load({ rxcui: RXCUI, tty: TTY, query: "reference" })
       .catch((e: unknown) => e);
 
     // The distinction the whole taxonomy rests on: "openFDA is down" is a
@@ -139,7 +139,9 @@ describe("kill openFDA — the page keeps its name, packages and alternatives", 
     );
 
     const loaders = createLoaders(deps);
-    await loaders.label.load({ rxcui: RXCUI, tty: TTY }).catch(() => {});
+    await loaders.label
+      .load({ rxcui: RXCUI, tty: TTY, query: "reference" })
+      .catch(() => {});
 
     expect(attempts).toBe(2);
   });
@@ -156,7 +158,11 @@ describe("kill openFDA — the page keeps its name, packages and alternatives", 
     );
 
     const loaders = createLoaders(deps);
-    const label = await loaders.label.load({ rxcui: RXCUI, tty: TTY });
+    const label = await loaders.label.load({
+      rxcui: RXCUI,
+      tty: TTY,
+      query: "reference",
+    });
 
     expect(label?.kind).toBe("labels");
     expect(attempts).toBe(2);
@@ -177,7 +183,11 @@ describe("openFDA says no — a different thing entirely", () => {
     );
 
     const loaders = createLoaders(deps);
-    const label = await loaders.label.load({ rxcui: RXCUI, tty: TTY });
+    const label = await loaders.label.load({
+      rxcui: RXCUI,
+      tty: TTY,
+      query: "reference",
+    });
 
     // `null` here is ADR-010's `absent`, which the resolver will render as
     // "openFDA has no label for this drug" — naming the source, because a
@@ -196,9 +206,7 @@ describe("kill RxNorm — this one is fatal", () => {
     );
 
     const loaders = createLoaders(deps);
-    const err = await loaders.properties
-      .load(RXCUI)
-      .catch((e: unknown) => e);
+    const err = await loaders.properties.load(RXCUI).catch((e: unknown) => e);
 
     // RxNorm is identity, not enrichment. There is no partial page to render
     // when we cannot establish which drug this is — inventing one would be
@@ -215,9 +223,7 @@ describe("kill RxNorm — this one is fatal", () => {
     );
 
     const loaders = createLoaders(deps);
-    const err = await loaders.properties
-      .load(RXCUI)
-      .catch((e: unknown) => e);
+    const err = await loaders.properties.load(RXCUI).catch((e: unknown) => e);
 
     // RxNorm says "no such drug" with HTTP 200 and `{}`. A 500 must never be
     // read that way: not-found is a settled answer, a 500 is an outage.

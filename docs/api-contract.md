@@ -112,7 +112,20 @@ be derivable from a response or the UI is inventing it.
 
 | Field | Source | Freshness | Failure mode |
 | --- | --- | --- | --- |
-| `openFDALabel: String` | openFDA | as `Drug.label` | Nullable. **Which of 78 SPLs this is, is Q2, open.** `openfda.rxcui:"860975"` reports `meta.results.total: 78` — one per manufacturer, repackager, and revision. `results[0]` is an arbitrary manufacturer's copy. Whatever is chosen, `Label` needs a field *naming* it, or the UI claims "the label" without grounds. |
+| `setId: ID!` | openFDA `set_id` | as `Drug.label` | Rows without one are passed over. Builds the DailyMed link. |
+| `productName: String!` | `openfda.brand_name[0]`, else `generic_name[0]` | as `Drug.label` | Rows without either are passed over. |
+| `manufacturer: String!` | `openfda.manufacturer_name[0]` | as `Drug.label` | Rows without one are passed over. |
+| `effectiveDate: String!` | `effective_time` | as `Drug.label` | `YYYYMMDD` sliced to ISO, never through `Date`. |
+| `chosenBy: LabelChoice!` | server | — | Which step of ADR-015's chain found it: `OWN_LABEL`, `REFERENCE_IN_RESULTS`, `BRAND_VERSION`, `ORIGINAL_PACKAGER`. |
+| `sections: [LabelSection!]!` | seven narrative fields | as `Drug.label` | ui-spec §11 order, boxed warning first. A missing or blank section is left out. `warnings` stands in for `warnings_and_cautions` on older labels. |
+
+**Q2 closed by ADR-015 (Option A).** The chain is in `src/server/label.ts`. It
+asks openFDA two filtered, newest-first searches rather than pulling every row:
+NDA or BLA rows (steps 1 to 3) and `is_original_packager` rows (step 4), five
+per page. Within a page, an original packager beats a relabel, then newest,
+then `set_id` breaks a tie on the date. Measured live 2026-09-25: Lipitor and
+atorvastatin both show Viatris's NDA020702 label; metformin ER reaches step 4
+(Granules, 2026-07-17) in ~1.8 s over three round trips.
 
 **Cost note.** One label is **118 KB**, and openFDA supports no field projection —
 you download 118 KB to render a paragraph (§2.3). Trimming is the BFF's job.
@@ -147,11 +160,10 @@ ordinary traffic, not only by a fault injection.
 
 | Q | Question | Blocks |
 | --- | --- | --- |
-| Q2 | Which of the SPLs is `Label`? | `Label.openFDALabel`, `LABEL_PAGE_SIZE` |
 | Q4 | Does openFDA batch by `OR`? | `Drug.label` batching |
 | Q8 | Does search tolerate typos? | `search` |
 
-**Q2 measured but deliberately deferred (2026-09-11).** Sampled live:
+**Q2, closed 2026-09-24 by ADR-015; kept for provenance.** Measured 2026-09-11: Sampled live:
 `atorvastatin 10 MG Oral Tablet` (SCD 617312) has **91 SPLs from 55 distinct
 labelers**. They are not copies — `indications_and_usage` runs 0, 1,093, 2,199,
 2,197 and 4,330 characters across the first five, and at least one is empty. The
@@ -165,9 +177,7 @@ therefore **what `Label` is** — one document, a merged view, or a count plus a
 link — not which of the 91 to choose. `Label.openFDALabel: String` presumes the
 first of those and should not be treated as settled.
 
-Until it closes, `LABEL_PAGE_SIZE` in `src/server/openfda-client.ts` caps the
-payload at 25 without choosing between them. It is a placeholder, not a
-decision.
+`LABEL_PAGE_SIZE` is now 5 per filtered search, and no longer a placeholder.
 
 **Q7 is closed** (2026-09-11), folded into the rows above and implemented in
 `src/server/tty.ts`. An alternative is a dispensable product — `SCD`, `SBD`,

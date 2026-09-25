@@ -8,11 +8,30 @@ import { parseLabelSearch, type LabelOutcome } from "./upstream/openfda.schema";
 export const OPENFDA_BASE_URL = "https://api.fda.gov";
 
 /**
- * How many labels to ask for per drug. A product RxCUI can carry scores of
- * SPLs — **which of them `Label` names is Q2, still open** — so this caps the
- * payload without choosing between them.
+ * The two label searches ADR-015's chain needs. Each is filtered and sorted by
+ * openFDA, not by us: one label is ~118 KB with no field projection, and
+ * atorvastatin alone has 90, so pulling every row to filter here would move
+ * megabytes to keep one.
+ *
+ *   reference         the NDA or BLA label (steps 1 to 3). BLA because
+ *                     insulins and other biologics are licensed, not approved:
+ *                     Lantus is BLA021081.
+ *   originalPackager  labels with `is_original_packager`, newest first
+ *                     (step 4). Measured 2026-09-25: 34 of atorvastatin's 90.
+ *
+ * Newest first on both, so a caller reading `results[0]` gets the current
+ * revision. Ties on the date are real (Apotex and Quallent share 20260908 on
+ * one ANDA), so the page size leaves room to break them in code.
  */
-export const LABEL_PAGE_SIZE = 25;
+export type LabelQuery = "reference" | "originalPackager";
+
+const LABEL_FILTERS: Record<LabelQuery, string> = {
+  reference:
+    "(openfda.application_number:NDA*+OR+openfda.application_number:BLA*)",
+  originalPackager: "openfda.is_original_packager:true",
+};
+
+export const LABEL_PAGE_SIZE = 5;
 
 /**
  * ADR-010's two guards live here, at the client, because both are facts about
@@ -116,16 +135,20 @@ export const OPENFDA_QUERIED_FIELDS = [
   "openfda.substance_name",
   "openfda.spl_id",
   "openfda.application_number",
+  "openfda.is_original_packager",
+  "boxed_warning",
   "indications_and_usage",
-  "warnings",
   "dosage_and_administration",
-  "adverse_reactions",
   "contraindications",
+  "warnings_and_cautions",
+  "warnings",
+  "adverse_reactions",
+  "drug_interactions",
   "description",
 ] as const;
 
 /**
- * Fetch the labels openFDA holds for one product RxCUI.
+ * Fetch one of ADR-015's two label searches for one product RxCUI.
  *
  * **Per key, never OR-batched.** `api-contract.md` §Batching and
  * upstream-notes §2.4: `search=openfda.rxcui:("a" OR "b")` ranks results
@@ -142,16 +165,18 @@ export const OPENFDA_QUERIED_FIELDS = [
  * `Absent`, naming openFDA as the source, because a reader who cannot see which
  * source came up empty cannot rule that source out.
  */
-export async function fetchLabelsForRxcui(
+export async function fetchLabels(
   rxcui: string,
   tty: string,
+  query: LabelQuery,
   deps: HttpDeps = {},
 ): Promise<LabelOutcome | null> {
   assertLabelQueryableTty(rxcui, tty);
 
   const url =
     `${OPENFDA_BASE_URL}/drug/label.json` +
-    `?search=openfda.rxcui:%22${encodeURIComponent(rxcui)}%22&limit=${LABEL_PAGE_SIZE}`;
+    `?search=openfda.rxcui:%22${encodeURIComponent(rxcui)}%22+AND+${LABEL_FILTERS[query]}` +
+    `&sort=effective_time:desc&limit=${LABEL_PAGE_SIZE}`;
 
   const res = await requestUpstream("openfda", url, deps);
 
@@ -159,5 +184,7 @@ export async function fetchLabelsForRxcui(
   // read off the response and never off the clock.
   if (res.status === 404) return null;
 
-  return parseLabelSearch(parseJsonBody("openfda", "drug/label.json", res.body));
+  return parseLabelSearch(
+    parseJsonBody("openfda", "drug/label.json", res.body),
+  );
 }
