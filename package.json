@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:deploy": "npm run fetch:snapshot && next build",
     "start": "next start",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
@@ -13,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "codegen": "graphql-codegen",
     "snapshot:nadac": "tsx --conditions=react-server scripts/snapshot-nadac.ts",
+    "fetch:snapshot": "tsx --conditions=react-server scripts/fetch-snapshot.ts",
     "check:openfda-fields": "tsx --conditions=react-server scripts/check-openfda-fields.ts",
     "check:build-degradation": "tsx scripts/check-build-degradation.ts",
     "rehearse:rollover": "tsx --conditions=react-server scripts/rehearse-nadac-rollover.ts",

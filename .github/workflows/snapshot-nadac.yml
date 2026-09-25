@@ -1,0 +1,100 @@
+name: NADAC snapshot
+
+# ADR-016, Q2 A. The weekly NADAC job (ADR-009), run here rather than on the
+# host, with its output committed to the `data` branch:
+#
+#   1. restore last week's snapshot from `data` (ADR-012 is read-merge-write:
+#      the quarterly series accumulates, with no backfill);
+#   2. run the job (5 to 19 minutes, ADR-009 finding 4);
+#   3. commit the new snapshot to `data`, one dated commit per week;
+#   4. ask Vercel to redeploy, since a build is what picks the file up and a
+#      new process is what `loadPriceIndex` needs to see it.
+#
+# `data` holds nothing but the snapshot, and is separate from `main` because
+# `main` is protected. The history in `data` is the only copy of the price
+# series and it cannot be rebuilt, so nothing here ever force-pushes it.
+#
+# Failing loudly: the job exits non-zero on anything that would write a
+# partial or misattributed snapshot, and GitHub emails the failure of a
+# scheduled run. A failure leaves `data` untouched, so the site keeps last
+# week's prices and its 14-day staleness notice keeps counting.
+on:
+  schedule:
+    # Fridays, 09:00 UTC. NADAC's weekly batch is dated Wednesdays and lands
+    # after; a day's margin is cheaper than a run that finds last week's.
+    - cron: "0 9 * * 5"
+  workflow_dispatch:
+
+# Never two writers, and never cancel one mid-write.
+concurrency:
+  group: nadac-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  snapshot:
+    name: snapshot NADAC into the data branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Restore last week's snapshot
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch --depth=1 origin data
+            mkdir -p .data
+            git show FETCH_HEAD:nadac-snapshot.json > .data/nadac-snapshot.json
+            echo "restored $(wc -c < .data/nadac-snapshot.json) bytes from data@$(git rev-parse --short FETCH_HEAD)"
+          else
+            echo "No data branch yet: this is the first run, and the series starts here."
+          fi
+
+      - run: npm run snapshot:nadac
+
+      - name: Commit the snapshot to the data branch
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          work="$(mktemp -d)"
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git worktree add --detach "$work" FETCH_HEAD
+          else
+            git worktree add --detach "$work"
+            git -C "$work" checkout --orphan data
+            git -C "$work" rm -rfq .
+          fi
+          cp .data/nadac-snapshot.json "$work/nadac-snapshot.json"
+          git -C "$work" add nadac-snapshot.json
+          if git -C "$work" diff --cached --quiet; then
+            echo "Snapshot unchanged since last week; nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          as_of="$(node -p "require('./.data/nadac-snapshot.json').manifest.asOf")"
+          git -C "$work" commit -qm "data: NADAC snapshot as of ${as_of}"
+          git -C "$work" push origin HEAD:refs/heads/data
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL is not set, so the site keeps serving last week's snapshot until the next deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "redeploy requested"
