@@ -253,7 +253,9 @@ worth watching against the ~20 MB ceiling as the series accumulates — **at
 0.28 MB per quarter, that ceiling is roughly 14 years away**, so it is a note,
 not a risk. *(Superseded — the shipped shape costs ~0.88 MB per quarter and
 reaches the ceiling in about five years. See the amendment below; the sentence
-is kept as written because it is what was decided on.)*
+is kept as written because it is what was decided on. The first production
+snapshot puts it nearer three: see "Measured on the first production
+snapshot".)*
 
 **Committed to.** A four-quarter chart at launch, stated as such in the UI rather
 than presented as "price history" without qualification. And the pre-window tail
@@ -268,8 +270,8 @@ here.
 
 ## Amendment, 2026-09-22: the headroom is five years, not fourteen
 
-**Status:** proposed — the correction is measured; the choice it forces is the
-author's. Decision section below is deliberately empty.
+**Status:** decided 2026-09-22, Option A (#64). The decision was recorded in
+#64's PR body and left out of this file; it was copied in on 2026-09-28.
 
 Code-free per the amendment rule: the measurement rode with #62, but what to do
 about it changes a consequence this ADR committed to, and accepting a fix and
@@ -353,11 +355,61 @@ exists to surface, and the hosting question (still open) is entangled with it.
 
 ### Decision
 
-<!-- Yours. -->
+**Option A.** Keep the shape, correct the number. The original decision stands
+in full; only the date on part 4's storage-engine trigger moves — **~2031, not
+~2040**. *(Measured closer to ~2029 on the first production snapshot; see
+below. The decision does not change.)*
+
+Not taken: **B/C** trade a field for headroom (`observations` buys too little to
+justify an SDL change; `effectiveDate` buys years but costs the thing this ADR
+says a point *is*). **D** (rolling cap) is the only option that would actually
+cap retention, and it makes accumulation lossy — against the safety property the
+immutability rule exists to protect. **E** is A with different emphasis.
+
+**Recorded because it was asked:** nothing here caps retention. The series
+accumulates without limit; the ceiling is when the *file* stops being viable,
+not when data starts being dropped. Deep history at launch remains Q1 Option D —
+declined, because it needs a 14-dataset backfill and a database, and that is a
+scope line to spend deliberately rather than a consequence of a storage number.
 
 ### Consequences
 
-<!-- Written once the decision is made. -->
+- **The tuple encoding is now load-bearing, not an optimisation.** At the
+  named-field shape the ceiling is ~2 years. Widening `StoredPoint` back into an
+  object, or adding a fourth field, is a storage decision from here on.
+- **Backfill got more expensive to reconsider.** Accumulation and backfill draw
+  on the same headroom — paging an older yearly dataset costs roughly a year off
+  the ceiling per four quarters recovered. A future backfill decision is now a
+  storage-engine decision too.
+- The production home of the snapshot will likely force the engine question
+  before the ceiling does. *(Since decided: ADR-016 keeps it in git on a
+  `data` branch, which does not change the ceiling.)*
+
+### Measured on the first production snapshot, 2026-09-28
+
+A measurement, not a change of decision. The first run of the weekly job
+(`data` at `4c8f528`, 2026-09-25) is **9.22 MB**:
+
+| Part of the file | Size | Contents |
+| --- | --- | --- |
+| `latestByNdc` | 4.15 MB | 32,674 NDCs |
+| `quarterlySeries` | 5.07 MB | 7 quarters; 120,188 points, 52.5% of dense |
+| `manifest` | <0.01 MB | |
+
+1. **The series matches the amendment.** The axis says seven quarters, but
+   only four are populated: 2025Q4–2026Q3 hold 29,133–30,196 NDCs each, and
+   2025Q1–Q3 hold the 220–314 NDCs the 2026 dataset still carries with an
+   older last price. 5.07 MB against the 4.8 MB predicted for four dense
+   quarters is that tail plus the null slots. A full quarter adds
+   **~0.89 MB**, against ~0.88 predicted.
+2. **The amendment measured the series alone, and the ceiling is on the
+   file.** The ~20 MB working ceiling (Q2) is about parsing one JSON file,
+   and `latestByNdc` shares that file. At 9.22 MB plus ~0.89 MB a quarter,
+   the file reaches ~20 MB in about **12 quarters: around 2029, not 2031.**
+3. **No decision changes.** Three years is still well past launch, and part 4
+   already names the ceiling as the trigger. The date moves, the trigger does
+   not. If three years changes the call, that is a separate decision PR with
+   options, not this one.
 
 ## Revisit if
 

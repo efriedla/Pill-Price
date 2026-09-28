@@ -16,7 +16,7 @@ Operating rule 1: no feature starts until the decision doc exists. Copy
 | [009](009-nadac-on-the-request-path.md) | Does NADAC belong on the request path? (Q5)            | accepted |
 | [010](010-upstream-error-taxonomy.md)   | Upstream error taxonomy: partial vs fatal (Q3)         | accepted |
 | [011](011-timeouts-and-retries.md)     | Timeout budgets, retries and backoff on the request path | accepted |
-| [012](012-price-history-retention.md)   | How much price history do we keep, and where?           | accepted (amendment proposed) |
+| [012](012-price-history-retention.md)   | How much price history do we keep, and where?           | accepted (amended) |
 | [013](013-scope-under-schedule.md)      | What ships, now that the calendar and the roadmap disagree | accepted |
 | [014](014-price-history-read-path.md)   | What `Drug.priceHistory` actually returns                  | proposed |
 | [015](015-what-label-is.md)            | What `Label` is (Q2)                                        | accepted |
