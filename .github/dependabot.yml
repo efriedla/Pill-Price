@@ -5,8 +5,8 @@ updates:
     directory: "/"
     schedule:
       # Monthly: a weekly batch of patch bumps costs a serial merge queue
-      # (~5 min each) for no user-visible change. Security advisories are
-      # not on this schedule; Dependabot opens those as they are published.
+      # (~5 min each) for no user-visible change. Security fixes come
+      # from Dependabot security updates (a repo setting), not this schedule.
       interval: monthly
     open-pull-requests-limit: 5
     labels: ["dependencies"]

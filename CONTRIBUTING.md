@@ -230,8 +230,8 @@ difference between a repo that exists and a repo you can defend.
 
 ## Dependencies
 
-Dependabot opens grouped PRs monthly, batched by toolchain. Security
-advisories are not on that schedule and arrive as they are published. Majors
+Dependabot opens grouped PRs monthly, batched by toolchain. Security fixes are
+a separate repo setting (Dependabot security updates), not this schedule. Majors
 are ignored deliberately — a major upgrade is a decision with an ADR, not a
 routine merge.
 
