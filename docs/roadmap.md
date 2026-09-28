@@ -91,13 +91,14 @@ This is the week that carries the most interview weight. Spend the focused hours
 
 ## Week 3 — Search + Detail
 
-**Focused hours:** Decide the streaming boundaries — what's in the Suspense shell vs. what streams in. Decide `generateStaticParams` cutoff (top ~300 RxCUIs by NADAC volume) and defend the number.
+**Focused hours:** Decide the streaming boundaries — what's in the Suspense shell vs. what streams in. Decide ~~`generateStaticParams` cutoff (top ~300 RxCUIs by NADAC volume) and defend the number~~ **which pages to prerender, and defend the set — replaced by a small fixed set, [ADR-005](adr/005-static-dynamic-split.md) Q3, 2026-09-23**.
 
 **Delegate:** search UI with debounce + URL sync, detail page layout, NADAC price chart, generic-alternatives section, loading skeletons, error boundaries.
 
 **Definition of done:**
 - [ ] Search is SSR + streaming; results shell paints before data resolves
-- [ ] Detail pages: top 300 static at build, tail via ISR — verify by checking build output and a cold-tail request
+- [ ] ~~Detail pages: top 300 static at build, tail via ISR~~ — **replaced — [ADR-005](adr/005-static-dynamic-split.md) Q3, 2026-09-23**
+- [ ] Detail pages: the fixed prerender set (`src/app/drug/[rxcui]/prerendered.ts`, now `860975`) static at build; every other drug served as an App Shell and upgraded after its first visit — verify by checking build output and a cold-tail request. *Local build 2026-09-28: `○ /drug/860975`, `◐ /drug/[rxcui]`; a cold `/drug/617312` returned 200 in 1.1 s. Tick once the same holds on the deployed build.*
 - [ ] Every async surface has an explicit loading, empty, and error state (screenshot all three)
 - [ ] **Lighthouse baseline recorded and committed** — you need the "before" for W6
 - [ ] Acquisition-cost disclaimer shipped

@@ -27,6 +27,8 @@ npm run dev           # http://localhost:3000
 npm run storybook     # http://localhost:6006
 ```
 
+The component library is also published: **[Storybook](https://efriedla.github.io/Pill-Price/)**, rebuilt on every merge to `main`.
+
 ## The loading games
 
 Long waits have a mini game. Both cover a call that is genuinely in flight —
