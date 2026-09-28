@@ -230,9 +230,10 @@ difference between a repo that exists and a repo you can defend.
 
 ## Dependencies
 
-Dependabot opens grouped PRs weekly, batched by toolchain. Majors are ignored
-deliberately — a major upgrade is a decision with an ADR, not a Monday morning
-merge.
+Dependabot opens grouped PRs monthly, batched by toolchain. Security
+advisories are not on that schedule and arrive as they are published. Majors
+are ignored deliberately — a major upgrade is a decision with an ADR, not a
+routine merge.
 
 Before adding a dependency, ask what it costs at the boundary: does it push
 work to the client, does it own data you'd rather own, and would writing the
