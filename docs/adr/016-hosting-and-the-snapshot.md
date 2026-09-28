@@ -29,7 +29,10 @@ have been left open on purpose until now:
   into the quarterly series already in the file, with **no backfill**. So
   production needs state that survives from one run to the next, and **losing
   the file loses history that cannot be rebuilt.** ADR-012 put the ceiling at
-  ~0.88 MB per quarter, about five years to the ~20 MB JSON limit.
+  ~0.88 MB per quarter, about five years to the ~20 MB JSON limit. *(The
+  first production snapshot, 9.22 MB, puts it nearer three: that figure
+  counted the series but not the latest-price table in the same file. See
+  ADR-012, 2026-09-28.)*
 - Read by `loadPriceIndex`, memoised **per process**. A new snapshot needs a
   new process (a redeploy or a restart) to be seen.
 - `REQUIRE_NADAC_SNAPSHOT=1` makes a build fail without it (ADR-010
