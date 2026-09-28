@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "latest",
-    "@graphql-codegen/cli": "^7.4.1",
+    "@graphql-codegen/cli": "^7.4.3",
     "@graphql-codegen/typed-document-node": "^7.1.0",
     "@graphql-codegen/typescript": "^6.1.0",
     "@graphql-codegen/typescript-operations": "^6.1.7",
