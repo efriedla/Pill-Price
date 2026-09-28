@@ -38,7 +38,7 @@
     "@graphql-codegen/cli": "^7.4.3",
     "@graphql-codegen/typed-document-node": "^7.1.0",
     "@graphql-codegen/typescript": "^6.1.0",
-    "@graphql-codegen/typescript-operations": "^6.1.6",
+    "@graphql-codegen/typescript-operations": "^6.1.7",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/addon-docs": "^10.6.0",
@@ -64,7 +64,7 @@
     "playwright": "latest",
     "storybook": "^10.5.10",
     "tailwindcss": "^4",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vite": "latest",
     "vitest": "^4.1.11"
