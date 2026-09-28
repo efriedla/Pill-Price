@@ -76,7 +76,7 @@ export interface SnapshotManifest {
 
 export interface Snapshot {
   manifest: SnapshotManifest;
-  /** Latest price per NDC. ~30,200 entries, ~3 MB. */
+  /** Latest price per NDC. 32,674 entries, 4.15 MB on the first production run. */
   latestByNdc: PriceEntry[];
   /**
    * Quarterly price history — ADR-012.
@@ -299,8 +299,11 @@ export function compareDecimal(a: string, b: string): number {
  * the field names are the file. Measured against the real 32,621-NDC snapshot,
  * four quarters of `{quarter, perUnit, effectiveDate, observations}` objects
  * encode to **12.6 MB** where the same data as tuples is **4.8 MB** — the keys
- * outweigh the values roughly two to one. At the object shape the JSON store's
- * ~20 MB working ceiling arrives in about two years; at this one, five.
+ * outweigh the values roughly two to one. At the object shape the series alone
+ * reaches the JSON store's ~20 MB working ceiling in about two years; at this
+ * one, five. The ceiling is on the whole file, though, and with `latestByNdc`
+ * in it the first production snapshot puts it about three years out (ADR-012,
+ * 2026-09-28).
  *
  * Read it through `pointsOf`, which expands it back into named fields. Nothing
  * above this module should index a tuple.
