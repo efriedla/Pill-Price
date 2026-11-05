@@ -16,8 +16,10 @@ missing value says which source is missing it and whether that is a fact
 load price data. This is on our side, not NADAC's").
 
 **Status: finished, 2026-11-05.** Two routes shipped: `/search` and
-`/drug/[rxcui]`. **It is not hosted.** The screenshots below come from a
-production build, and [run it locally](#run-it-locally) to click through it.
+`/drug/[rxcui]`. **The app itself is not hosted,** but there is a
+**[static demo on GitHub Pages](https://efriedla.github.io/Pill-Price/)**: 85
+real drugs, frozen from the app's own GraphQL API, searchable and clickable.
+For the real thing, [run it locally](#run-it-locally).
 What was cut, and why, is in
 [ADR-013](docs/adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)
 and the [roadmap](docs/roadmap.md).
@@ -107,7 +109,10 @@ Without the snapshot the app still runs, and every price says "We couldn't
 load price data". That is the honest state, not a crash. For production
 numbers, use `npm run build:deploy && npm start` (with the same variable set).
 
-The component library is also published: **[Storybook](https://efriedla.github.io/Pill-Price/)**, rebuilt on every merge to `main`.
+The component library is also published: **[Storybook](https://efriedla.github.io/Pill-Price/storybook/)**, rebuilt on every merge to `main`.
+
+The static demo lives in `demo/`. `npm run demo:data` refreezes its data from a
+local production build; `storybook-pages.yml` publishes it.
 
 Evidence scripts, none in CI: `npm run screenshots`, `npm run lighthouse`,
 `npm run keyboard-walk`, and `npm run rehearse:rollover` (the January NADAC
@@ -218,7 +223,9 @@ Written honestly, and added to as they were discovered:
 
 - **Pricing is acquisition cost, not what a patient pays.** The page says so
   above every price.
-- **Not hosted.** There is no live URL; see above.
+- **Not hosted.** The [static demo](https://efriedla.github.io/Pill-Price/) is
+  frozen data with client-side search over 85 drugs, not the server-rendered
+  app.
 - **A new snapshot needs a restart,** and a drug page upgraded after its first
   visit is written to disk, so it keeps its old price until it is revalidated.
 - **No price history is shown.** The quarterly series is stored and grows

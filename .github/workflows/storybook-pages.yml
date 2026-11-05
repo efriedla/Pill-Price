@@ -1,4 +1,7 @@
-# Publishes the Storybook build to GitHub Pages, so the design system — and
+# Publishes a static demo of the app (demo/, at the site root) and the
+# Storybook build (at /storybook/) to GitHub Pages.
+#
+# The Storybook half: so the design system — and
 # the PillShotLoader mini game — can be opened and used without checking the
 # repo out. A README cannot host either: GitHub sanitizes markdown HTML, so
 # no script, iframe or interactive canvas survives it.
@@ -40,9 +43,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build-storybook
+      # The site: the static demo at the root (demo/, data frozen by
+      # npm run demo:data), Storybook under /storybook/. The demo takes the
+      # app's own tokens.css and icon, copied here so they cannot drift.
+      - name: assemble site
+        run: |
+          mkdir -p site
+          cp -R demo/. site/
+          cp src/lib/tokens.css src/app/icon.svg site/
+          mv storybook-static site/storybook
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: storybook-static
+          path: site
 
   deploy:
     name: deploy
