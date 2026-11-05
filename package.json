@@ -17,6 +17,7 @@
     "fetch:snapshot": "tsx --conditions=react-server scripts/fetch-snapshot.ts",
     "check:openfda-fields": "tsx --conditions=react-server scripts/check-openfda-fields.ts",
     "check:build-degradation": "tsx scripts/check-build-degradation.ts",
+    "screenshots": "tsx --conditions=react-server scripts/screenshots.ts",
     "rehearse:rollover": "tsx --conditions=react-server scripts/rehearse-nadac-rollover.ts",
     "codegen:check": "graphql-codegen --check",
     "test": "vitest run",
