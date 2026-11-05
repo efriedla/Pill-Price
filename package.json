@@ -19,6 +19,7 @@
     "check:build-degradation": "tsx scripts/check-build-degradation.ts",
     "screenshots": "tsx --conditions=react-server scripts/screenshots.ts",
     "lighthouse": "scripts/lighthouse.sh",
+    "demo:screenshots": "tsx scripts/demo-screenshots.ts",
     "demo:data": "tsx --conditions=react-server scripts/build-demo-data.ts",
     "keyboard-walk": "tsx --conditions=react-server scripts/keyboard-walk.ts",
     "rehearse:rollover": "tsx --conditions=react-server scripts/rehearse-nadac-rollover.ts",
