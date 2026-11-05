@@ -118,6 +118,7 @@ function ShownLabelBody({ label }: { label: ShownLabel }) {
               <ClampedProse
                 paragraphs={section.paragraphs}
                 clamp={!boxed && length > CLAMP_AFTER_CHARS}
+                title={SECTION_TITLES[section.kind]}
               />
               <p className="mt-3 text-step--1 text-text-secondary">
                 Source: FDA label · updated {date}
