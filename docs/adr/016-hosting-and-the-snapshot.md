@@ -1,6 +1,9 @@
 # ADR-016: Where the app runs, and where the NADAC snapshot lives
 
-**Status:** accepted
+**Status:** accepted. **Q1 was never carried out:** the app is not hosted;
+see [ADR-013's close-out amendment](013-scope-under-schedule.md#amendment-2026-11-05-close-out)
+(2026-11-05). Q2 is live: the weekly job has committed a snapshot to `data`
+every Friday since 2026-09-25 (six by 2026-10-30, every run green). Its deploy-hook step skips cleanly when no hook is set.
 **Date:** 2026-09-25 (options and decision)
 
 <!-- Roadmap rule 3: the author owns this. Options in #89, decision here.

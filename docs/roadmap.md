@@ -4,6 +4,8 @@
 
 **Re-scoped 2026-09-23 — [ADR-013](adr/013-scope-under-schedule.md).** The calendar reached week 5 with W1–W2 done. What ships, in order: search + detail deployed (W3), the performance case study (from W6), the a11y audit against the real build (from W7), then the README and one post (from W8). Everything else below is struck through and dated rather than deleted — deferred, not abandoned. Compare (W4) is the largest cut; ADR-013 is the written answer to why.
 
+**Closed 2026-11-05 — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out).** The author ended the project. Every box below is now either ticked, with its evidence, or cut, with a reason. Two more cuts were made at close-out: **no hosting** (screenshots, local Lighthouse and the local a11y audit stand in for a deployment), and the **performance case study stops at its baseline**. Nothing is open.
+
 **Time budget:** 2 hrs/day focused + 4 hrs/day Claude Code, 5–6 days/week.
 
 **Calibration:** TypeScript, App Router, and GraphQL are not new to you. Week 1 is compressed accordingly and the depth is pushed into the data layer (W2), performance (W6), and the written artifacts.
@@ -14,15 +16,15 @@
 
 The repo is the smaller half. Ship all of this:
 
-- [ ] Deployed app — 4 routes, no auth, no database — **2 routes, not 4** (`/search`, `/drug/[rxcui]`) — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
-- [ ] 8 ADRs
-- [ ] API contract document
-- [ ] Performance case study (before/after, with numbers)
-- [ ] Accessibility audit (WCAG 2.2 AA)
+- [ ] ~~Deployed app~~ — 4 routes, no auth, no database — **2 routes, not 4** (`/search`, `/drug/[rxcui]`) — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23. **Built, not deployed — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out).** Evidence instead: [`docs/screenshots/`](screenshots/README.md)
+- [x] 8 ADRs — **12 accepted** (001–005, 009–013, 015, 016); ADR-014 left proposed, options only
+- [x] API contract document — [`docs/api-contract.md`](api-contract.md)
+- [ ] ~~Performance case study (before/after, with numbers)~~ — **the "before" only:** [`docs/performance.md`](performance.md) (BFF p95 22 ms; Lighthouse baseline) — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)
+- [x] Accessibility audit (WCAG 2.2 AA) — [`docs/a11y-audit.md`](a11y-audit.md); no screen-reader pass, stated as its largest gap
 - [ ] ~~Threat model~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
-- [ ] `CONTRIBUTING.md` + component API guidelines
-- [ ] PR history with substantive review comments on every PR
-- [ ] 3 blog posts + 1 eight-minute architecture walkthrough video — **1 post; the other two and the video deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
+- [x] `CONTRIBUTING.md` + component API guidelines — its "Components" section
+- [ ] PR history with substantive review comments on every PR — **not met as written.** ~108 PRs. Every one not opened by Dependabot has a written description that links its authorizing ADR or states its exemption. Inline review threads are on some, not every one.
+- [ ] ~~3 blog posts + 1 eight-minute architecture walkthrough video~~ — **1 post; the other two and the video deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23. **The one post is cut too — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)**
 
 ---
 
@@ -82,7 +84,7 @@ This is the week that carries the most interview weight. Spend the focused hours
 
 **Definition of done:**
 - [x] `api-contract.md` published: every field, its source, its freshness, its failure mode — [`docs/api-contract.md`](api-contract.md); the last two `TTL TBD` cells closed 2026-09-16
-- [ ] Schema is codegen'd into ~~typed hooks~~ **typed operations**; no hand-written response types — **amended 2026-09-23:** [ADR-005](adr/005-static-dynamic-split.md) has pages execute codegen'd `TypedDocumentNode`s against the schema in-process, and search has no client data layer, so no client hook exists to be typed. The typed-operations half closes when the first page queries through one. No hand-written response types remain: `DrugSummary` is `Pick<Drug, …>` off the generated SDL types (2026-09-16); `SearchQuery` and `CompareState` stay hand-written on purpose — they are URL state, not responses.
+- [x] Schema is codegen'd into ~~typed hooks~~ **typed operations**; no hand-written response types — **amended 2026-09-23:** [ADR-005](adr/005-static-dynamic-split.md) has pages execute codegen'd `TypedDocumentNode`s against the schema in-process, and search has no client data layer, so no client hook exists to be typed. The typed-operations half closes when the first page queries through one. **Closed:** `/drug/[rxcui]` and `/search` both run codegen'd documents through `runQuery`. No hand-written response types remain: `DrugSummary` is `Pick<Drug, …>` off the generated SDL types (2026-09-16); `SearchQuery` and `CompareState` stay hand-written on purpose — they are URL state, not responses.
 - [x] Kill one upstream in MSW → app degrades gracefully, no crash, user sees why — `tests/kill-one-upstream.test.ts`, 9 cases
 - [x] p95 BFF response for a cached drug < 200ms (measure it, record it) — **22 ms**, recorded in [`docs/performance.md`](performance.md)
 - [x] ADR-004 (BFF + schema design) merged — accepted 2026-08-25
@@ -96,13 +98,13 @@ This is the week that carries the most interview weight. Spend the focused hours
 **Delegate:** search UI with debounce + URL sync, detail page layout, NADAC price chart, generic-alternatives section, loading skeletons, error boundaries.
 
 **Definition of done:**
-- [ ] Search is SSR + streaming; results shell paints before data resolves
+- [x] Search is SSR + streaming; results shell paints before data resolves — `◐ /search` in the build; [`search-loading-*`](screenshots/README.md) shows the shell before the results
 - [ ] ~~Detail pages: top 300 static at build, tail via ISR~~ — **replaced — [ADR-005](adr/005-static-dynamic-split.md) Q3, 2026-09-23**
-- [ ] Detail pages: the fixed prerender set (`src/app/drug/[rxcui]/prerendered.ts`, now `860975`) static at build; every other drug served as an App Shell and upgraded after its first visit — verify by checking build output and a cold-tail request. *Local build 2026-09-28: `○ /drug/860975`, `◐ /drug/[rxcui]`; a cold `/drug/617312` returned 200 in 1.1 s. Tick once the same holds on the deployed build.*
-- [ ] Every async surface has an explicit loading, empty, and error state (screenshot all three)
-- [ ] **Lighthouse baseline recorded and committed** — you need the "before" for W6
-- [ ] Acquisition-cost disclaimer shipped
-- [ ] ADR-005 (static/dynamic split) merged
+- [x] Detail pages: the fixed prerender set (`src/app/drug/[rxcui]/prerendered.ts`, now `860975`) static at build; every other drug served as an App Shell and upgraded after its first visit — verify by checking build output and a cold-tail request. *Local build 2026-09-28: `○ /drug/860975`, `◐ /drug/[rxcui]`; a cold `/drug/617312` returned 200 in 1.1 s. Tick once the same holds on the deployed build.* **Ticked on the local production build** (there is no deployed one — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)): rechecked 2026-11-05 at `fbc0f76`, same output.
+- [x] Every async surface has an explicit loading, empty, and error state (screenshot all three) — [`docs/screenshots/`](screenshots/README.md), 16 states × 2 widths (#107)
+- [x] **Lighthouse baseline recorded and committed** — you need the "before" for W6 — [`docs/performance.md`](performance.md), local production build (#108)
+- [x] Acquisition-cost disclaimer shipped — on the home page and above every drug page's price (not dismissible)
+- [x] ADR-005 (static/dynamic split) merged
 
 ---
 
@@ -138,7 +140,7 @@ Your "independently led a complex feature from concept through launch" story.
 - [ ] ~~Coverage floor set in CI, then **raised in a separate follow-up PR** so the history shows improvement~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] ~~3 Playwright journeys green in CI against a production build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] ~~`jest-axe` fails the build on a violation (prove it)~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
-- [ ] MSW covers every upstream failure mode from W2
+- [ ] MSW covers every upstream failure mode from W2 — **closed as is, not verified mode by mode — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out).** `tests/kill-one-upstream.test.ts` takes each upstream down and checks the app degrades with a stated reason; `npm run check:build-degradation` does the same for a build. Nobody has mapped the tests to every row of ADR-010's taxonomy.
 - [ ] ~~`testing-strategy.md`: what's tested, at what level, and what's deliberately not~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 ---
@@ -156,7 +158,7 @@ The week that produces your best interview artifact.
 - [ ] ~~Bundle-size check in CI with a hard ceiling~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] ~~Sentry catching real errors with readable stack traces from the deployed build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] ~~Web Vitals flowing to a dashboard you can screenshot~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
-- [ ] `performance-case-study.md`: before/after LCP, INP, CLS, TBT, bundle size — plus two things you tried that didn't work and why
+- [ ] ~~`performance-case-study.md`: before/after LCP, INP, CLS, TBT, bundle size — plus two things you tried that didn't work and why~~ — **baseline only**, in [`docs/performance.md`](performance.md) — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)
 - [ ] ~~ADR-007 (perf budgets + enforcement) merged~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
 ---
@@ -168,10 +170,10 @@ The week that produces your best interview artifact.
 **Delegate:** focus management fixes, skip links, ARIA corrections, CSP with nonces, security headers, BFF rate limiting, Contentful models + page-builder mapping if you take the option.
 
 **Definition of done:**
-- [ ] `a11y-audit.md`: WCAG 2.2 AA, what failed, what you fixed, what's a known gap and why
-- [ ] Full keyboard traversal of all routes with a visible focus ring throughout — **kept, for the two shipped routes** — [ADR-013](adr/013-scope-under-schedule.md)
+- [x] `a11y-audit.md`: WCAG 2.2 AA, what failed, what you fixed, what's a known gap and why — [`docs/a11y-audit.md`](a11y-audit.md)
+- [x] Full keyboard traversal of all routes with a visible focus ring throughout — `npm run keyboard-walk`: 93 stops on 7 pages, all visible — **kept, for the two shipped routes** — [ADR-013](adr/013-scope-under-schedule.md)
 - [ ] ~~CSP with nonces, no `unsafe-inline`, verified in the deployed build~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
-- [ ] BFF rate-limited; Zod rejects malformed input at every boundary — **rate limiting deferred; the Zod half is not decided by ADR-013** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
+- [ ] ~~BFF rate-limited; Zod rejects malformed input at every boundary~~ — **rate limiting deferred; the Zod half is not decided by ADR-013** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23. **Zod half cut — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)**
 - [ ] ~~`threat-model.md` — including why the app stores nothing sensitive, and what that decision buys~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 - [ ] ~~*Optional:* `/guides/[slug]` from Contentful with draft preview + webhook ISR revalidation, ADR-008~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
 
@@ -184,17 +186,17 @@ The week that produces your best interview artifact.
 **Focused hours:** all of it. This week is writing, not code.
 
 **Definition of done:**
-- [ ] Deployed, custom domain, no console errors, no Sentry noise — **deploy kept; Sentry deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23
-- [ ] README: what it is, architecture diagram, data sources, local setup, the honest limitations
+- [ ] ~~Deployed, custom domain, no console errors, no Sentry noise~~ — **deploy kept; Sentry deferred** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23. **Deploy cut — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)**
+- [x] README: what it is, architecture diagram, data sources, local setup, the honest limitations
 - [ ] ~~8-minute Loom walkthrough: problem → architecture → one hard tradeoff → results. Linked in the README and on your resume.~~ — **deferred — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23**
-- [ ] ~~3 posts drawn from ADRs.~~ **One post** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23; which one is chosen once the case study and audit exist. Suggested: (1) designing a GraphQL BFF over three uncooperative REST APIs, ~~(2) URL-as-state instead of a client store~~ (compare deferred), (3) the performance case study.
-- [ ] Resume bullets rewritten to cite specific numbers from the case study
+- [ ] ~~3 posts drawn from ADRs.~~ ~~**One post**~~ **cut — [ADR-013 close-out](adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out).** Was: **One post** — [ADR-013](adr/013-scope-under-schedule.md), 2026-09-23; which one is chosen once the case study and audit exist. Suggested: (1) designing a GraphQL BFF over three uncooperative REST APIs, ~~(2) URL-as-state instead of a client store~~ (compare deferred), (3) the performance case study.
+- [x] Resume bullets rewritten to cite specific numbers ~~from the case study~~ — drafted at close-out from the measured numbers; the case study was cut
 
 ---
 
 ## Parallel Track — the people bullets
 
-Code cannot produce these. One hour a week, starting week 1.
+Code cannot produce these. One hour a week, starting week 1. **Not done, and outside the repo: left open at close-out, not cut.** They are the author's to pick up or drop.
 
 - [ ] **Mentoring:** ADPList sessions or substantive reviews on open-source PRs. Target 6+ real reviews by W8. Log each one — you need two concrete stories.
 - [ ] **Distilling complex topics:** the 3 posts and the Loom cover this. Have a non-engineer read one post and tell you where they got lost, then fix it.

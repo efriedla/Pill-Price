@@ -261,3 +261,49 @@ about.
 - **W3 takes materially more or less than 6.5 active days.** It is the first UI
   week, so it is the measurement that tells us whether the per-surface costs
   above are real.
+
+## Amendment 2026-11-05: close-out
+
+**Status of this amendment:** accepted, by the author, 2026-11-05.
+
+The author decided to finish the project rather than keep building it, in
+these words: "I am over this project, is there any way we can speed this up to
+try to finish this project quickly". The project ends here. What shipped is
+recorded in the roadmap, and everything else moves to future work.
+
+### Two further cuts
+
+1. **No hosting.** ADR-016 chose Vercel, and the import was never done. On
+   2026-11-05 the author declined to create a Vercel account, even after
+   hearing that the Hobby plan is free. GitHub Pages was raised as the
+   alternative and ruled out: it serves only static files, and search, every
+   unlisted drug page and `/api/graphql` need a running server. Moving to
+   client-side fetching would rewrite ADR-001, ADR-005 and ADR-016. So the
+   evidence a deployment would have given is replaced by:
+   - **32 screenshots of every state**, taken from a production build
+     (`docs/screenshots/`, #107);
+   - a **Lighthouse baseline measured on a local production build**
+     (`docs/performance.md`, #108), labelled as local;
+   - the **a11y audit run against that same local build** (#108).
+
+   The cost: there is no URL a screener can click.
+2. **The performance case study shrinks to its baseline.** This ADR brought it
+   back as item 2 of "what ships". It stops at the "before": the Lighthouse
+   numbers and a stated hypothesis for the mobile LCP, without the
+   change-one-thing-and-measure loop. The one post (item 4) is cut with it,
+   since it was to be chosen once the case study existed.
+
+### What shipped against "What ships"
+
+| Item | Outcome |
+| --- | --- |
+| 1. Search + drug detail, deployed | **Shipped, not deployed.** Streaming search, the static/tail split, three states per async surface, the disclaimer, ADR-005. |
+| 2. Performance case study | **Baseline only** (cut 2 above). |
+| 3. A11y audit against the real build | **Shipped** (`docs/a11y-audit.md`). Automated rules and a keyboard walk pass. There was **no screen-reader pass**, and the audit says so as its largest gap. |
+| 4. README + one post | **README shipped; the post is cut.** |
+
+### Rejected
+
+- **GitHub Pages:** cannot run the app as built (above).
+- **Keep going to the original W8:** the author's call. The project was
+  never going to finish that way at the measured cadence.

@@ -93,7 +93,7 @@ jobs:
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           if [ -z "$HOOK" ]; then
-            echo "::warning::VERCEL_DEPLOY_HOOK_URL is not set, so the site keeps serving last week's snapshot until the next deploy."
+            echo "::notice::VERCEL_DEPLOY_HOOK_URL is not set, so no redeploy was requested. The app is not hosted (ADR-013 close-out); the snapshot is committed to the data branch either way."
             exit 0
           fi
           curl -fsS -X POST "$HOOK" > /dev/null
