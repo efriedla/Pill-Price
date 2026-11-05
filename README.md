@@ -6,28 +6,112 @@ A drug-pricing reference built on RxNorm, openFDA, and NADAC.
 patient pays at the counter and it is not an insurance price. Every figure in
 this app is labelled accordingly — see [`docs/ui-spec.md`](docs/ui-spec.md) §9.
 
-## Status
+## What it is
 
-**Week 2 of 8** — the data layer. The GraphQL schema is written and its types
-are generated, but **there is no data yet**: resolvers are stubs that return
-`null` and empty lists rather than fixtures, because a stub that invented a
-price would read as a working feature. Upstream clients, batching, caching, and
-the error taxonomy are the rest of the week.
+Search a drug by name, open it, and see what pharmacies pay for it (NADAC),
+what it is (RxNorm), its brand and generic versions with their own prices, and
+its FDA label (openFDA). Every price carries its unit and its date. Every
+missing value says which source is missing it and whether that is a fact
+("NADAC doesn't publish a cost for this drug") or a failure ("We couldn't
+load price data. This is on our side, not NADAC's").
 
-Week 1 is closed: design system, module boundaries, and CI. The plan is in
-[`docs/roadmap.md`](docs/roadmap.md); the schema's reasoning is in
-[ADR-004](docs/adr/004-bff-and-schema-design.md).
+**Status: finished, 2026-11-05.** Two routes shipped: `/search` and
+`/drug/[rxcui]`. **It is not hosted.** The screenshots below come from a
+production build, and [run it locally](#run-it-locally) to click through it.
+What was cut, and why, is in
+[ADR-013](docs/adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)
+and the [roadmap](docs/roadmap.md).
 
-## Local setup
+<img src="docs/screenshots/drug-streamed-desktop.png" alt="A drug page: atorvastatin 10 mg, $0.0230 per unit, its Lipitor brand version at $13.4182, and its FDA label" width="640"> <img src="docs/screenshots/drug-streamed-mobile.png" alt="The same drug page at phone width" width="195">
+
+Every loading, empty and error state, at both widths, with how each was
+forced: **[docs/screenshots](docs/screenshots/README.md)**.
+
+## By the numbers
+
+| | |
+| --- | --- |
+| BFF p95, cached drug | **22 ms** against a 200 ms budget ([performance.md](docs/performance.md)) |
+| Lighthouse, desktop | 99–100 on every category |
+| Lighthouse, mobile | performance 86–88; accessibility, best practices, SEO 100; CLS 0 (local production build, simulated throttling) |
+| Keyboard | 93 tab stops on 7 pages, every one with a visible focus ring ([a11y-audit.md](docs/a11y-audit.md)) |
+| Tests | 264 unit and component tests, plus Storybook stories run in real Chromium |
+| Decisions | 12 accepted ADRs, each written before the code it authorized |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    P["/search, /drug/[rxcui]"]
+  end
+  subgraph Next["Next.js 16 server (App Router, cacheComponents)"]
+    RSC["Server components<br/>use cache: weeks, outages seconds"]
+    BFF["GraphQL BFF<br/>schema + resolvers + DataLoader"]
+    API["/api/graphql"]
+    SNAP[(".data/nadac-snapshot.json<br/>price index, loaded once")]
+  end
+  RX["RxNorm<br/>(live)"]
+  FDA["openFDA<br/>(live)"]
+  subgraph GH["GitHub Actions, Fridays"]
+    JOB["snapshot-nadac job"]
+    DATA[("data branch<br/>nadac-snapshot.json")]
+  end
+  NADAC["NADAC<br/>(Medicaid.gov)"]
+
+  P -- "streamed HTML, PPR shell first" --> RSC
+  RSC -- "runQuery: typed documents, in process" --> BFF
+  API --> BFF
+  BFF --> RX
+  BFF --> FDA
+  BFF --> SNAP
+  NADAC --> JOB --> DATA
+  DATA -- "npm run fetch:snapshot" --> SNAP
+```
+
+- **Pages query the BFF in process.** They run codegen'd GraphQL documents
+  through `runQuery` inside `use cache` functions. An answer is cached for
+  weeks; **an outage is cached for seconds**, so a failure is retried soon and
+  never gets stuck in the cache
+  ([ADR-001](docs/adr/001-rendering-strategy.md),
+  [ADR-004](docs/adr/004-bff-and-schema-design.md)). `/api/graphql` exposes
+  the same schema.
+- **One drug is prerendered; every other drug gets an instant shell** and
+  streams the rest, then is served static after its first visit
+  ([ADR-005](docs/adr/005-static-dynamic-split.md)). Each of the page's three
+  boundaries (price, versions, label) loads on its own. A wait past 1.5 s
+  turns its skeleton into a small game (below).
+- **NADAC is never on the request path.** A weekly job downloads all ~1M rows,
+  keeps the latest price per NDC plus a quarterly series, and commits the file
+  to the `data` branch ([ADR-009](docs/adr/009-nadac-on-the-request-path.md),
+  [ADR-012](docs/adr/012-price-history-retention.md),
+  [ADR-016](docs/adr/016-hosting-and-the-snapshot.md)).
+- **Every failure has a type.** A field resolves to its value, to `Absent`
+  (the source says there is none), or to `Unavailable` (we could not ask), and
+  the page prints the server's sentence for each
+  ([ADR-010](docs/adr/010-upstream-error-taxonomy.md)). Money is a decimal
+  string end to end and is never a float.
+
+## Run it locally
 
 ```bash
 nvm use               # Node 24, per .nvmrc
 npm ci
+NADAC_SNAPSHOT_URL=https://raw.githubusercontent.com/efriedla/Pill-Price/data/nadac-snapshot.json \
+  npm run fetch:snapshot   # the latest weekly prices, into .data/
 npm run dev           # http://localhost:3000
 npm run storybook     # http://localhost:6006
 ```
 
+Without the snapshot the app still runs, and every price says "We couldn't
+load price data". That is the honest state, not a crash. For production
+numbers, use `npm run build:deploy && npm start` (with the same variable set).
+
 The component library is also published: **[Storybook](https://efriedla.github.io/Pill-Price/)**, rebuilt on every merge to `main`.
+
+Evidence scripts, none in CI: `npm run screenshots`, `npm run lighthouse`,
+`npm run keyboard-walk`, and `npm run rehearse:rollover` (the January NADAC
+dataset change, against the live API).
 
 ## The loading games
 
@@ -88,7 +172,8 @@ src/lib/gql/      generated GraphQL types — the only thing features/ and
 docs/adr/         decision records — read before changing architecture
 docs/sketches/    throwaway layout sketches against the real tokens
 docs/ui-spec.md   field mapping, colour semantics, copy rules
-docs/roadmap.md   the 8-week plan
+docs/roadmap.md   the 8-week plan, closed with what shipped and what was cut
+docs/screenshots/ every state, from a production build
 tests/            repo-level tests (boundary enforcement)
 ```
 
@@ -120,24 +205,36 @@ them directly in a browser; nothing there ships.
 
 | Source | Used for | Freshness |
 | --- | --- | --- |
-| RxNorm | drug concepts, ingredients, related products | live |
-| openFDA | labels, NDC, manufacturer, pharmacologic class | live |
-| NADAC | acquisition cost per unit | weekly |
+| RxNorm | drug identity, search, ingredients, dose form, brand and generic versions | live, cached per its `cacheLife` |
+| openFDA | the label (the reference brand's, which generics follow; [ADR-015](docs/adr/015-what-label-is.md)) | live, cached |
+| NADAC | acquisition cost per unit (EA, mL or gram) | weekly snapshot |
 
-The API contract lands in week 2 as `docs/api-contract.md`.
+Every field's source, freshness and failure mode is in
+[`docs/api-contract.md`](docs/api-contract.md).
 
 ## Limitations
 
-Written honestly, and expanded as they are discovered:
+Written honestly, and added to as they were discovered:
 
-- Pricing is acquisition cost, not consumer price
-- NADAC is weekly, so there is no intraday or daily price history
-- Drugs enter and leave NADAC; gaps in a series are real and are never
-  interpolated across
-- Composition bars are drawn to a compressed scale, stated on the page — a
-  325 mg / 5 mg combination at true proportion renders the smaller ingredient
-  invisible
-- No auth, no accounts, no database — by design
+- **Pricing is acquisition cost, not what a patient pays.** The page says so
+  above every price.
+- **Not hosted.** There is no live URL; see above.
+- **A new snapshot needs a restart,** and a drug page upgraded after its first
+  visit is written to disk, so it keeps its old price until it is revalidated.
+- **No price history is shown.** The quarterly series is stored and grows
+  every week, but the chart was never built
+  ([ADR-014](docs/adr/014-price-history-read-path.md) is still options only).
+  Gaps in a series are real and would never be interpolated.
+- **A drug's headline price is its cheapest package.** For about a third of
+  multi-package drugs the packages disagree (median spread 9.9%).
+- **Mobile LCP is ~2.5 s** under Lighthouse's simulated throttling, held back
+  by script, not the server. Measured, not fixed.
+- **No screen-reader pass;** six more known gaps are in the
+  [a11y audit](docs/a11y-audit.md). Among them: no link back to search from a
+  drug page, and the search box is blank while results load.
+- **Compare, the composition bar and the drug-class section were cut**
+  ([ADR-013](docs/adr/013-scope-under-schedule.md)).
+- No auth, no accounts, no database: by design.
 
 ## Contributing
 
