@@ -9,24 +9,31 @@
   <!-- The app's own design tokens, copied in at publish time (storybook-pages.yml). -->
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="demo.css">
+  <link rel="preload" href="data.json" as="fetch" crossorigin>
+  <link rel="modulepreload" href="widgets.js">
+  <link rel="modulepreload" href="decimal.js">
+  <!-- Apply a saved theme before first paint, so dark mode does not flash light. -->
+  <script>try{var t=localStorage.getItem("pp-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header class="bar">
     <div class="bar-inner">
-      <a class="wordmark" href="#/">Pill Price</a>
-      <span class="tag" title="Real data, frozen. See the note below.">Static demo</span>
+      <a class="wordmark" href="#/"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g transform="rotate(-40 12 12)"><rect x="3" y="8" width="18" height="8" rx="4" fill="var(--generic)"/><path d="M12 8h5a4 4 0 0 1 0 8h-5z" fill="var(--brand)"/></g></svg>Pill Price</a>
+      <span class="tag">Static demo</span>
+      <span class="fresh" id="fresh" tabindex="0">NADAC Oct 30, 2026 · snapshot Nov 5</span>
       <nav class="bar-links" aria-label="Project">
         <a href="https://github.com/efriedla/Pill-Price">Source</a>
         <a href="https://github.com/efriedla/Pill-Price/tree/main/docs/adr">Decisions</a>
         <a href="storybook/">Components</a>
+        <button type="button" class="theme-btn" id="theme-btn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span class="sr-only">Theme: </span><span class="t-name">System</span></button>
       </nav>
     </div>
   </header>
 
-  <div class="demo-note" role="note">
-    <p id="demo-note-text">A static demo. Loading data…</p>
-  </div>
+  <aside class="demo-note" aria-label="About this demo">
+    <p id="demo-note-text"><strong>Static demo.</strong> 85 real drugs, frozen from the app's own GraphQL API on Nov 5, 2026 (NADAC prices as of Oct 30, 2026). The real app is server-rendered and searches all of RxNorm. <a href="https://github.com/efriedla/Pill-Price#readme">How it works</a></p>
+  </aside>
 
   <main id="main" tabindex="-1"></main>
 
