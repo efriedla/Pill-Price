@@ -103,3 +103,11 @@ Applied to the static demo only (`demo/`); the app is closed and unchanged. Pric
 
 **Measured** (Lighthouse 12.8.2, mobile, gzip-served, median of 3): home and a drug page both performance 100, accessibility 100, CLS 0. axe-core 4.13: 0 violations over 28 checks (light/dark × desktop/mobile × 7 views).
 
+## Prototype pass (2026-11-05)
+
+The author's widget prototype is kept in [`prototype/`](prototype/demoPage.html), outside `demo/` so it is not published. Its look was applied to the demo: Fraunces and IBM Plex (self-hosted, `demo/fonts/`), three-across price cards with a gradient gap bar and inline label, widgets in panels with serif titles, segmented toggles, tinted dot-matrix panels, a beeswarm (dodge) layout, a live dot on the freshness badge, dashed diagram wires.
+
+**Not carried over, and why:** the sparklines and "vs 4 wk ago" trends, and 81 of the 85 beeswarm dots, are placeholder data in the prototype (its own notes say so); the demo uses the 59 real priced drugs and shows no history. The prototype's float arithmetic (9,900 tablets; the published price gives 9,881), its counters that show 0 until scrolled into view, and its endlessly looping wires (WCAG 2.2.2) were not copied. Its "four orders of magnitude" is 3.5 on the real data, and so was the demo's own caption; both now say "more than three".
+
+**Measured after:** axe 0 violations over 28 checks; Lighthouse mobile (gzip) performance 98 home / 95 drug, accessibility 100, CLS 0. Loading the fonts from Google instead measured 90 / 92 with CLS 0.046, which is why they are self-hosted.
+

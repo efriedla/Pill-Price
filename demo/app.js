@@ -126,7 +126,8 @@ function wireCombo() {
 // ---- Home ----
 function homeView() {
   setTitle("");
-  const pairs = brandPairs(4);
+  // Six: whole rows at three, two or one across.
+  const pairs = brandPairs(6);
   const buyPairs = brandPairs(12);
   const chips = DATA.terms.map((t) => `<li><a href="#/search?q=${encodeURIComponent(t)}" data-term="${esc(t)}">${esc(t)}</a></li>`).join("");
 
@@ -157,9 +158,9 @@ function homeView() {
     </section>
 
     <section class="block" aria-labelledby="buy-h">
-      <p class="eyebrow">Interactive</p>
-      <h2 class="title" id="buy-h">What does $100 buy?</h2>
-      <div class="buy card">
+      <p class="eyebrow">Interactive · What does $100 buy?</p>
+      <div class="buy band">
+        <h2 id="buy-h">What does your money buy at acquisition cost?</h2>
         <div class="buy-controls">
           <div><label for="buy-drug">Drug</label><select id="buy-drug">${buyPairs.map((p, i) => `<option value="${i}">${esc(p.ing)} · ${esc(brandShort(p.brand.name))}</option>`).join("")}</select></div>
           <div><label for="buy-amt">Amount, in dollars</label><input id="buy-amt" type="number" min="1" max="1000" step="1" value="100" inputmode="numeric"></div>
@@ -172,17 +173,17 @@ function homeView() {
     </section>
 
     <section class="block" aria-labelledby="land-h">
-      <p class="eyebrow">All ${Object.keys(DATA.drugs).length} drugs in this demo</p>
-      <h2 class="title" id="land-h">The price landscape</h2>
-      <p class="sub">Every priced drug by NADAC cost per unit. The axis is logarithmic: these prices span four orders of magnitude, from about a cent to over thirty dollars a tablet.</p>
-      <div class="land card">
-        <div class="land-tools">
-          <div class="legend"><span><span class="dotk" aria-hidden="true"></span>Generic</span><span><span class="ring" aria-hidden="true"></span>Brand</span></div>
-          <div>
-            <button type="button" class="toggle" id="land-brand" aria-pressed="true">Show brands</button>
-            <button type="button" class="toggle" id="land-table" aria-pressed="false">View as table</button>
+      <p class="eyebrow">The price landscape · every priced drug in this demo</p>
+      <div class="land band">
+        <div class="band-head">
+          <h2 id="land-h">Per-unit prices span more than three orders of magnitude</h2>
+          <div class="segs">
+            <div class="seg" role="group" aria-label="Overlay"><button type="button" id="land-gen" aria-pressed="false">Generic only</button><button type="button" id="land-brand" aria-pressed="true">+ Brand</button></div>
+            <div class="seg" role="group" aria-label="View"><button type="button" id="land-chart" aria-pressed="true">Chart</button><button type="button" id="land-table" aria-pressed="false">Table</button></div>
           </div>
         </div>
+        <p class="sub" style="margin:0">From about a cent a tablet (generic amlodipine) to over thirty dollars (Rybelsus). The axis is logarithmic, so each gridline is ten times the last.</p>
+        <div class="legend"><span><span class="dotk" aria-hidden="true"></span>Generic per unit</span><span><span class="ring" aria-hidden="true"></span>Brand per unit</span></div>
         <div id="land-view"></div>
         <p class="caption">NADAC per-unit prices, most recent effective dates up to ${esc(formatIsoDate((DATA.snapshotAsOf || "").slice(0, 10)))}. Lines join a brand to its generic.</p>
       </div>
@@ -241,6 +242,7 @@ function landscapeRows() {
 }
 function wireLandscape() {
   const view = main.querySelector("#land-view"), bBtn = main.querySelector("#land-brand"), tBtn = main.querySelector("#land-table");
+  const gBtn = main.querySelector("#land-gen"), cBtn = main.querySelector("#land-chart");
   const rows = landscapeRows();
   const draw = () => {
     const brands = bBtn.getAttribute("aria-pressed") === "true";
@@ -261,7 +263,10 @@ function wireLandscape() {
       landscape(view, rows, { showBrand: brands, fmt: money, href: drugHref });
     }
   };
-  for (const b of [bBtn, tBtn]) b.addEventListener("click", () => { b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); draw(); });
+  // Two segmented controls: exactly one button of each pair is pressed.
+  const pick = (on, off) => () => { on.setAttribute("aria-pressed", "true"); off.setAttribute("aria-pressed", "false"); draw(); };
+  bBtn.addEventListener("click", pick(bBtn, gBtn)); gBtn.addEventListener("click", pick(gBtn, bBtn));
+  tBtn.addEventListener("click", pick(tBtn, cBtn)); cBtn.addEventListener("click", pick(cBtn, tBtn));
   draw();
 }
 
@@ -269,7 +274,7 @@ function archSvg() {
   const box = (x, y, w, h, cls, title, sub) => `<rect class="box ${cls}" x="${x}" y="${y}" width="${w}" height="${h}" rx="10"/>
     <text x="${x + w / 2}" y="${y + h / 2 - (sub ? 4 : -4)}" text-anchor="middle" font-weight="600">${title}</text>
     ${sub ? `<text class="small" x="${x + w / 2}" y="${y + h / 2 + 14}" text-anchor="middle">${sub}</text>` : ""}`;
-  const wire = (d) => `<path class="wire" pathLength="1" d="${d}"/>`;
+  const wire = (d) => `<path class="wire" d="${d}"/>`;
   return `<svg viewBox="0 0 860 250" role="img" aria-labelledby="arch-t arch-d">
     <title id="arch-t">Architecture of the real app</title>
     <desc id="arch-d">RxNorm, openFDA and a weekly NADAC snapshot feed a GraphQL backend-for-frontend, which serves the Next.js page: an instant shell, then streamed price, versions and label.</desc>

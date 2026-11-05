@@ -70,7 +70,7 @@ export function gapBar(genericPrice, brandPrice) {
   const sentence = `Per unit, the brand costs ${times} times the generic.`;
   return `<div class="gap" role="img" aria-label="${esc(sentence)}">
     <div class="gap-track" aria-hidden="true"><span class="b"></span><span class="g" style="width:${pct.toFixed(2)}%"></span></div>
-    <p class="gap-label" aria-hidden="true">Per unit, the brand costs <strong>${esc(times)}×</strong> the generic</p>
+    <p class="gap-label" aria-hidden="true">Brand costs <strong>${esc(times)}×</strong> generic</p>
   </div>`;
 }
 
@@ -203,15 +203,31 @@ export function landscape(root, rows, { showBrand, fmt, href }) {
   const prices = rows.map((r) => Number(r.price));
   const lo = Math.floor(Math.log10(Math.min(...prices))), hi = Math.ceil(Math.log10(Math.max(...prices)));
   const x = (p) => L + ((Math.log10(Number(p)) - lo) / (hi - lo)) * (W - L - R);
-  // Deterministic jitter, so a dot does not move between renders.
-  const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return (h % 1000) / 1000 - 0.5; };
-  // A brand sits on its generic's row, so the line joining them is horizontal
-  // and its length is the gap on the log scale.
+  // Beeswarm: each generic sits on its lane's centre line and steps up or
+  // down only as far as it must to clear the dots already placed. A brand
+  // sits on its generic's row, so the line joining them is horizontal and its
+  // length is the gap on the log scale. Deterministic: no randomness.
+  const DOT = 6, STEP = 2 * DOT + 1;
   const byRx0 = Object.fromEntries(rows.map((r) => [r.rxcui, r]));
-  const y = (r) => {
-    const anchor = !r.isGeneric && r.genericOf && byRx0[r.genericOf] ? byRx0[r.genericOf] : r;
-    return T + lanes.indexOf(anchor.lane) * laneH + laneH / 2 + jitter(anchor.rxcui) * (laneH * 0.62);
-  };
+  const placedY = {};
+  for (const lane of lanes) {
+    const mid = T + lanes.indexOf(lane) * laneH + laneH / 2, limit = laneH / 2 - DOT;
+    const placed = [];
+    const owners = rows.filter((r) => (r.isGeneric || !byRx0[r.genericOf]) && r.lane === lane)
+      .sort((a, b) => Number(a.price) - Number(b.price));
+    for (const r of owners) {
+      const px = x(r.price);
+      let yy = mid;
+      for (let k = 0; k < 40; k++) {
+        const dy = (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (STEP / 2);
+        if (Math.abs(dy) > limit) continue;
+        if (placed.every(([qx, qy]) => Math.hypot(px - qx, mid + dy - qy) >= STEP)) { yy = mid + dy; break; }
+      }
+      placed.push([px, yy]);
+      placedY[r.rxcui] = yy;
+    }
+  }
+  const y = (r) => placedY[!r.isGeneric && byRx0[r.genericOf] ? r.genericOf : r.rxcui];
 
   let grid = "";
   for (let e = lo; e <= hi; e++) {
