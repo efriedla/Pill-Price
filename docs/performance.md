@@ -108,3 +108,59 @@ npm run build && npm run start
 #   3 warm-up requests, then 100 timed ones for the cached column
 #   1 request each across ~18 distinct RxCUIs for the cold column
 ```
+
+---
+
+# Lighthouse baseline — measured
+
+The W3 definition of done asks for a **Lighthouse baseline, recorded and
+committed**. This is it.
+
+**Measured locally, not on a deployment.** Pill Price is not hosted (the
+roadmap's closing amendment says why). These figures come from
+`npm run build:deploy` + `next start` on the author's machine (4-core Intel i3,
+1.1 GHz), at `cd256a5`, on 2026-11-05. They use Lighthouse 12.8.2's default
+**simulated** throttling: the mobile preset models a slow 4G link and a CPU
+4× slower than the host. The figures are the **median of 3 runs** per page and
+form factor. Each page was requested once before measuring, so a drug outside
+the prerender set (`617312`) is measured after its first-visit upgrade
+(ADR-005 Q3), which is what a second visitor gets.
+
+| Page | Form | Perf | A11y | BP | SEO | LCP | TBT | CLS | FCP |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `/` | desktop | 100 | 100 | 100 | 100 | 638 ms | 53 ms | 0.000 | 280 ms |
+| `/search?q=metformin` | desktop | 99 | 100 | 100 | 100 | 618 ms | 72 ms | 0.000 | 236 ms |
+| `/drug/860975` (prerendered) | desktop | 100 | 100 | 100 | 100 | 489 ms | 68 ms | 0.000 | 318 ms |
+| `/drug/617312` (upgraded) | desktop | 99 | 100 | 100 | 100 | 577 ms | 90 ms | 0.000 | 287 ms |
+| `/` | mobile | 86 | 100 | 100 | 100 | 2503 ms | 313 ms | 0.000 | 840 ms |
+| `/search?q=metformin` | mobile | 88 | 100 | 100 | 100 | 2453 ms | 396 ms | 0.000 | 828 ms |
+| `/drug/860975` (prerendered) | mobile | 88 | 100 | 100 | 100 | 1749 ms | 462 ms | 0.000 | 947 ms |
+| `/drug/617312` (upgraded) | mobile | 87 | 100 | 100 | 100 | 2584 ms | 487 ms | 0.000 | 968 ms |
+
+## What the mobile numbers say
+
+Desktop is at or near 100 everywhere. **Mobile performance (86–88) is the
+weak spot**, and it is client-side, not server-side: the real server response
+was 9–24 ms on these pages.
+
+On `/drug/617312` the LCP element is the drug name `<h1>`. Of its 2.6 s,
+**2.1 s is render delay**. The HTML has arrived, and the text waits to be
+painted. No web fonts load, so it is not a font swap. What the trace does show:
+
+- one JavaScript chunk costs **576 ms of scripting** under the 4× CPU model,
+  and that dominates total blocking time (313–487 ms on mobile);
+- one 5 KB stylesheet is render-blocking (~175 ms, estimated);
+- 141 KB of JavaScript transferred, ~29 KB of it unused on this page.
+
+**Not investigated further, on purpose.** The before/after performance case
+study (W6) was cut. These figures are the "before" it would have started from.
+The leading suspect is hydration of the client components on the page (the
+label's Show more buttons and the loading games' lazy chunks), but that is a
+hypothesis, not a measurement.
+
+## How to re-measure
+
+```sh
+npm run build:deploy   # with NADAC_SNAPSHOT_URL set
+npm run lighthouse     # scripts/lighthouse.sh; raw reports in .lighthouse/
+```

@@ -1,6 +1,7 @@
 import { formatIsoDate } from "@/lib/calendar-date";
 
 import type { DrugSummary } from "./types";
+import { unitLabel } from "./unitLabel";
 
 /**
  * Round a decimal *string* to four places, half-up, without ever making it a
@@ -74,7 +75,7 @@ export function formatPerUnit(drug: DrugSummary): string {
   const price = drug.price;
   switch (price.__typename) {
     case "Price":
-      return `$${roundDecimalString(price.pricePerUnit)} per unit · as of ${formatIsoDate(price.effectiveDate)}`;
+      return `$${roundDecimalString(price.pricePerUnit)} ${unitLabel(price.unit)} · as of ${formatIsoDate(price.effectiveDate)}`;
     case "Absent":
     case "Unavailable":
       return price.reason;

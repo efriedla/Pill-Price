@@ -2,6 +2,7 @@ import { formatIsoDate } from "@/lib/calendar-date";
 import { cn } from "@/lib/cn";
 
 import { roundDecimalString } from "./formatPerUnit";
+import { unitLabel } from "./unitLabel";
 
 /**
  * Any `PriceResult` a query selected, reduced to what this line reads. Both
@@ -9,7 +10,7 @@ import { roundDecimalString } from "./formatPerUnit";
  * serves both without widening either query.
  */
 export type PriceLinePrice =
-  | { __typename: "Price"; pricePerUnit: string; effectiveDate: string }
+  | { __typename: "Price"; pricePerUnit: string; unit: string; effectiveDate: string }
   | { __typename: "Absent"; reason: string }
   | { __typename: "Unavailable"; reason: string };
 
@@ -49,7 +50,7 @@ export function PriceLine({
             ${roundDecimalString(price.pricePerUnit)}
           </span>
           <span className="text-step--1 text-text-secondary">
-            per unit · as of {formatIsoDate(price.effectiveDate)}
+            {unitLabel(price.unit)} · as of {formatIsoDate(price.effectiveDate)}
           </span>
         </p>
       );

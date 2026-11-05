@@ -72,11 +72,21 @@ describe("DrugLabel", () => {
 
   it("clamps a long section behind a real button that reports its state", () => {
     render(<DrugLabel drug={shown()} />);
-    const button = screen.getByRole("button", { name: "Show more" });
+    const button = screen.getByRole("button", { name: /^Show more: / });
     expect(button).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(button);
     expect(button).toHaveAttribute("aria-expanded", "true");
     expect(button).toHaveTextContent("Show less");
+  });
+
+  it("names each Show more after its section, so a list of buttons can tell them apart", () => {
+    render(<DrugLabel drug={shown()} />);
+    const button = screen.getByRole("button", { name: /^Show more: / });
+    const heading = button.closest("section")?.querySelector("h3")?.textContent;
+    expect(heading).toBeTruthy();
+    expect(button).toHaveAccessibleName(`Show more: ${heading}`);
+    // What a sighted user sees is unchanged.
+    expect(button.firstChild?.textContent).toBe("Show more");
   });
 
   it("offers no button on a section short enough to read whole", () => {

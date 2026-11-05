@@ -119,7 +119,7 @@ The reference is mobile-only. Yours is web, and a stretched phone layout reads a
 
 ## 9. Copy Rules
 
-- Every price is followed by its unit and its date: `$0.0412 per unit · as of Aug 12, 2026`
+- Every price is followed by its unit and its date: `$0.0412 per unit · as of Aug 12, 2026`. **Amended 2026-11-05:** the unit follows NADAC's pricing unit: EA reads "per unit", ML "per mL", GM "per gram". A liquid's price is per millilitre, and "per unit" would claim it is per dose.
 - "Drug class," never "what it treats" — the field is pharmacologic class
 - "Marketing start," never "approved" — different regulatory events
 - Errors state what failed and what still works: *"Label data is unavailable right now. Pricing below is current."*

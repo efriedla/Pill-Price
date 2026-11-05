@@ -7,6 +7,12 @@ import { useId, useState } from "react";
  * button (ui-spec §11). Expands in place: the clamp is removed, nothing is
  * inserted above the text, so nothing already read moves.
  *
+ * The button's accessible name carries the section title ("Show more:
+ * Indications and usage") in visually hidden text. A label has several
+ * clamped sections, and a screen reader's list of buttons would otherwise read
+ * "Show more" six times. The visible words stay first, so the name still
+ * contains the visible label (WCAG 2.5.3).
+ *
  * Whether to clamp at all is decided by the server component from the text's
  * length, not measured here. Measuring would need layout, which the first
  * paint does not have, and a button that appears after hydration is a jump.
@@ -14,9 +20,12 @@ import { useId, useState } from "react";
 export function ClampedProse({
   paragraphs,
   clamp,
+  title,
 }: {
   paragraphs: readonly string[];
   clamp: boolean;
+  /** The section's heading, for the button's accessible name. */
+  title: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
@@ -41,6 +50,7 @@ export function ClampedProse({
           className="mt-2 text-step--1 font-semibold text-accent underline-offset-4 hover:text-accent-hover hover:underline"
         >
           {expanded ? "Show less" : "Show more"}
+          <span className="sr-only">: {title}</span>
         </button>
       ) : null}
     </>
