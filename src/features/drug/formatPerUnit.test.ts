@@ -102,6 +102,23 @@ describe("formatPerUnit", () => {
     );
   });
 
+  it("prices a liquid per mL and a cream per gram, not per unit", () => {
+    const at = (unit: string) =>
+      formatPerUnit(
+        summary({
+          __typename: "Price",
+          pricePerUnit: "0.0500",
+          unit,
+          effectiveDate: "2026-08-12",
+          asOf: "2026-08-14",
+        }),
+      );
+    expect(at("ML")).toBe("$0.0500 per mL · as of Aug 12, 2026");
+    expect(at("GM")).toBe("$0.0500 per gram · as of Aug 12, 2026");
+    // Not an enum: a unit this app has never seen is shown, not hidden.
+    expect(at("KIT")).toBe("$0.0500 per KIT · as of Aug 12, 2026");
+  });
+
   it("rounds the published figure to four places", () => {
     expect(formatPerUnit(priced("0.02902"))).toBe(
       "$0.0290 per unit · as of Mar 18, 2026",

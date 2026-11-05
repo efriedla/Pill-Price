@@ -10,6 +10,7 @@ const absent: PriceLinePrice = { __typename: "Absent", reason: NOT_PUBLISHED };
 const priced: PriceLinePrice = {
   __typename: "Price",
   pricePerUnit: "0.1195",
+  unit: "EA",
   effectiveDate: "2026-08-19",
 };
 

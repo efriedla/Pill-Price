@@ -70,6 +70,7 @@ export const TwoIngredients: Story = {
             price: {
               __typename: "Price",
               pricePerUnit: "0.07512",
+              unit: "EA",
               effectiveDate: "2026-08-19",
             },
           },

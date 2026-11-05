@@ -43,6 +43,7 @@ query DrugVersions($rxcui: ID!) {
             __typename
             ... on Price {
               pricePerUnit
+              unit
               effectiveDate
             }
             ... on Absent {
