@@ -24,7 +24,30 @@ What was cut, and why, is in
 [ADR-013](docs/adr/013-scope-under-schedule.md#amendment-2026-11-05-close-out)
 and the [roadmap](docs/roadmap.md).
 
-<img src="docs/screenshots/drug-streamed-desktop.png" alt="A drug page: atorvastatin 10 mg, $0.0230 per unit, its Lipitor brand version at $13.4182, and its FDA label" width="640"> <img src="docs/screenshots/drug-streamed-mobile.png" alt="The same drug page at phone width" width="195">
+### The demo · [efriedla.github.io/Pill-Price](https://efriedla.github.io/Pill-Price/)
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-screenshots/home-dark.png"><img src="docs/demo-screenshots/home-light.png" alt="The demo's home page: a search box with a Cmd-K hint, quick-pick drug chips, and generic-versus-brand price cards, each with a bar showing the brand's multiple" width="800"></picture>
+
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-screenshots/landscape-dark.png"><img src="docs/demo-screenshots/landscape-light.png" alt="The price landscape: every priced drug on a log-scale axis from one cent to one hundred dollars per unit, generics as filled teal dots and brands as amber rings on the same row, joined by a line" width="400"></picture><br><sub><b>The price landscape.</b> Every drug on a log axis, each brand on its generic's row, so the line is the gap. Every dot is a link, and there is a table view.</sub></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-screenshots/buy-dark.png"><img src="docs/demo-screenshots/buy-light.png" alt="What does $100 buy: at NADAC, $100 buys 9,881 tablets of generic amlodipine 5 mg or 11 tablets of Norvasc, drawn as dot grids" width="400"></picture><br><sub><b>What does $100 buy?</b> Exact decimal arithmetic on the published prices ($0.01012 and $8.69488), never a float.</sub></td>
+</tr>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-screenshots/drug-dark.png"><img src="docs/demo-screenshots/drug-light.png" alt="A drug page: atorvastatin 10 mg at $0.0230 per unit, a bar showing the Lipitor brand at 583 times the generic, details, a sortable versions table, and the FDA label in tabs" width="400"></picture><br><sub><b>A drug page.</b> Sortable, filterable versions with multiples, and the FDA label in tabs.</sub></td>
+<td width="50%" align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/demo-screenshots/drug-mobile-dark.png"><img src="docs/demo-screenshots/drug-mobile-light.png" alt="The same drug page at phone width" width="180"></picture><br><sub><b>At phone width</b>, light and dark (follows your GitHub theme).</sub></td>
+</tr>
+</table>
+
+Dark mode, a ⌘K typeahead, and keyboard support throughout. axe-core finds 0
+violations in light and dark; Lighthouse mobile scores performance 100 and
+accessibility 100. The demo is a static page over 85 real drugs frozen from
+the app's API ([`demo/`](demo/)), redesigned from
+[`docs/design/demo-redesign.md`](docs/design/demo-redesign.md).
+
+### The real app, from a production build
+
+<img src="docs/screenshots/drug-streamed-desktop.png" alt="A drug page in the real app: atorvastatin 10 mg, $0.0230 per unit, its Lipitor brand version at $13.4182, and its FDA label" width="480"> <img src="docs/screenshots/drug-streamed-mobile.png" alt="The same drug page at phone width" width="146">
 
 Every loading, empty and error state, at both widths, with how each was
 forced: **[docs/screenshots](docs/screenshots/README.md)**.
@@ -112,7 +135,8 @@ numbers, use `npm run build:deploy && npm start` (with the same variable set).
 The component library is also published: **[Storybook](https://efriedla.github.io/Pill-Price/storybook/)**, rebuilt on every merge to `main`.
 
 The static demo lives in `demo/`. `npm run demo:data` refreezes its data from a
-local production build; `storybook-pages.yml` publishes it.
+local production build, `npm run demo:screenshots` retakes the README images,
+and `storybook-pages.yml` publishes it.
 
 Evidence scripts, none in CI: `npm run screenshots`, `npm run lighthouse`,
 `npm run keyboard-walk`, and `npm run rehearse:rollover` (the January NADAC
@@ -178,7 +202,8 @@ docs/adr/         decision records — read before changing architecture
 docs/sketches/    throwaway layout sketches against the real tokens
 docs/ui-spec.md   field mapping, colour semantics, copy rules
 docs/roadmap.md   the 8-week plan, closed with what shipped and what was cut
-docs/screenshots/ every state, from a production build
+docs/screenshots/ every state of the real app, from a production build
+docs/demo-screenshots/ the static demo, light and dark
 tests/            repo-level tests (boundary enforcement)
 ```
 
