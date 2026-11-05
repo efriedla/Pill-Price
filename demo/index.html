@@ -7,6 +7,10 @@
   <meta name="description" content="What U.S. pharmacies pay for a drug, from NADAC, RxNorm and openFDA. A static demo of a Next.js app, with real data frozen from its own GraphQL API.">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <!-- The app's own design tokens, copied in at publish time (storybook-pages.yml). -->
+  <!-- Type from docs/design/prototype, self-hosted (fonts/, SIL OFL 1.1): no third-party
+       request, and the two faces the first screen needs are preloaded. -->
+  <link rel="preload" href="fonts/fraunces-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/ibm-plex-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="demo.css">
   <link rel="preload" href="data.json" as="fetch" crossorigin>

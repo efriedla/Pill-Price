@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pill Price</title>
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="demoPage.css">
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="logo">Pill Price <span class="tag">Widget prototype</span></div>
+  <div class="fresh"><span class="dot"></span>NADAC <time datetime="2026-10-30">Oct 30, 2026</time> · snapshot <time datetime="2026-11-05">Nov 5</time></div>
+</header>
+
+<section class="hero">
+  <h1>What pharmacies <span class="mark">pay<svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 C 25 3, 60 12, 98 6"/></svg></span> for a drug.</h1>
+  <p class="lede">Search a drug, then see its NADAC acquisition cost, its brand and generic versions with their own prices, and its FDA label. Every figure carries its unit and its date.</p>
+  <p class="callout"><strong>This is an acquisition cost, not a retail price.</strong> NADAC reports what pharmacies pay to buy a drug, not what you pay at the counter, and not an insurance price.</p>
+</section>
+
+<h2 class="eyebrow">Generic and brand, per unit · with gap bar and 52-week sparkline</h2>
+<div class="grid2" id="cards"></div>
+<p class="note" style="margin-top:8px">Prices for the four drugs are real NADAC figures from the demo. Sparkline history is illustrative only; the spec says the snapshot job must retain real weekly history before this ships.</p>
+
+<h2 class="eyebrow">Counters that count up on first view</h2>
+<div class="stats">
+  <div class="card stat"><div class="n" data-count="22" data-suffix=" ms">0 ms</div><div class="l">p95 API response, cached drug</div></div>
+  <div class="card stat"><div class="n" data-count="100">0</div><div class="l">Lighthouse accessibility, mobile and desktop</div></div>
+  <div class="card stat"><div class="n" data-count="93" data-suffix=" / 93">0 / 93</div><div class="l">tab stops with a visible focus ring</div></div>
+  <div class="card stat"><div class="n" data-count="12">0</div><div class="l">decision records, written before the code</div></div>
+</div>
+
+<h2 class="eyebrow">Widget B1 · What does $100 buy?</h2>
+<section class="band" aria-labelledby="b1h">
+  <h3 id="b1h">What does your money buy at acquisition cost?</h3>
+  <div class="controls">
+    <label>Amount (USD)<input type="range" id="amt" min="1" max="1000" value="100" step="1"></label>
+    <label>&nbsp;<input type="number" id="amtn" min="1" max="1000" value="100" aria-label="Amount in dollars"></label>
+    <label>Drug<select id="drugsel"></select></label>
+  </div>
+  <p class="sentence" id="sentence" aria-live="polite"></p>
+  <div class="dots">
+    <figure style="margin:0"><svg id="dg" viewBox="0 0 300 150" aria-hidden="true"></svg><figcaption id="dgc"></figcaption></figure>
+    <figure style="margin:0"><svg id="db" viewBox="0 0 300 150" aria-hidden="true"></svg><figcaption id="dbc"></figcaption></figure>
+  </div>
+  <p class="note">Unit: per tablet or capsule · NADAC as of Oct 30, 2026 · count = floor(amount ÷ unit price), computed in decimal string math in the real app.</p>
+</section>
+
+<h2 class="eyebrow">Widget B2 · Price landscape, 85 drugs on a log scale</h2>
+<section class="band" aria-labelledby="b2h">
+  <div class="row" style="flex-wrap:wrap;align-items:center">
+    <h3 id="b2h">Generic per-unit prices span four orders of magnitude</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div class="toggle" role="group" aria-label="Overlay"><button id="ovG" aria-pressed="true">Generic only</button><button id="ovB" aria-pressed="false">+ Brand</button></div>
+      <div class="toggle" role="group" aria-label="View"><button id="vChart" aria-pressed="true">Chart</button><button id="vTable" aria-pressed="false">Table</button></div>
+    </div>
+  </div>
+  <div class="legend"><span>Generic per unit</span><span class="b">Brand per unit</span><span class="a">Hovered or searched drug</span></div>
+  <div class="bee" id="bee"><svg id="beesvg" viewBox="0 0 900 260" role="img" aria-label="Beeswarm of 85 generic drug prices on a log scale, grouped by dosage form"></svg><div class="tip" id="tip"></div></div>
+  <div id="beetable" hidden style="overflow-x:auto"></div>
+  <p class="note">Four dots are the real demo prices; the other 81 are placeholder values shaped to look like NADAC's distribution, so the layout can be judged. Each dot links to its drug page and is a tab stop.</p>
+</section>
+
+<h2 class="eyebrow">Phase D · How it works, as a live diagram</h2>
+<section class="band arch">
+  <svg viewBox="0 0 900 200" role="img" aria-label="RxNorm, openFDA and NADAC feed a GraphQL backend-for-frontend, which feeds a Next.js shell and three streamed slots">
+    <g><rect x="20" y="20" width="150" height="44" rx="8"/><text x="95" y="47" text-anchor="middle">RxNorm</text><text x="95" y="60" text-anchor="middle" class="small">names, versions</text></g>
+    <g><rect x="20" y="78" width="150" height="44" rx="8"/><text x="95" y="105" text-anchor="middle">openFDA</text><text x="95" y="118" text-anchor="middle" class="small">labels</text></g>
+    <g><rect x="20" y="136" width="150" height="44" rx="8"/><text x="95" y="163" text-anchor="middle">NADAC snapshot</text><text x="95" y="176" text-anchor="middle" class="small">~1M rows, weekly</text></g>
+    <path class="flow" d="M170 42 C 230 42, 230 100, 290 100"/><path class="flow" d="M170 100 L 290 100"/><path class="flow" d="M170 158 C 230 158, 230 100, 290 100"/>
+    <rect x="290" y="70" width="190" height="60" rx="8"/><text x="385" y="96" text-anchor="middle">GraphQL BFF</text><text x="385" y="112" text-anchor="middle" class="small">missing values say which source, fact or failure</text>
+    <path class="flow" d="M480 100 L 560 100"/>
+    <rect x="560" y="70" width="140" height="60" rx="8"/><text x="630" y="96" text-anchor="middle">Next.js shell</text><text x="630" y="112" text-anchor="middle" class="small">instant, prerendered</text>
+    <path class="flow" d="M700 100 C 740 100, 740 42, 780 42"/><path class="flow" d="M700 100 L 780 100"/><path class="flow" d="M700 100 C 740 100, 740 158, 780 158"/>
+    <rect x="780" y="24" width="100" height="36" rx="8"/><text x="830" y="47" text-anchor="middle">price</text>
+    <rect x="780" y="82" width="100" height="36" rx="8"/><text x="830" y="105" text-anchor="middle">versions</text>
+    <rect x="780" y="140" width="100" height="36" rx="8"/><text x="830" y="163" text-anchor="middle">label</text>
+  </svg>
+</section>
+
+<footer>NADAC is what pharmacies pay to acquire a drug. It is not a retail or insurance price. Nothing here is medical advice.</footer>
+</div>
+<script src="demoPage.js" defer></script>
+</body>
+</html>

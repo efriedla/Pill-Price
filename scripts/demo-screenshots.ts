@@ -23,7 +23,7 @@ const outDir = path.join(root, "docs/demo-screenshots");
 const PORT = 3463;
 const TYPES: Record<string, string> = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
-  ".json": "application/json", ".svg": "image/svg+xml",
+  ".json": "application/json", ".svg": "image/svg+xml", ".woff2": "font/woff2",
 };
 
 function serve(dir: string): http.Server {
@@ -54,6 +54,7 @@ async function main() {
   const open = async (scheme: "light" | "dark", width: number, hash: string): Promise<Page> => {
     const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: scheme, reducedMotion: "reduce", deviceScaleFactor: 2 });
     await page.goto(`http://127.0.0.1:${PORT}/${hash}`, { waitUntil: "networkidle" });
+    await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
     return page;
   };
