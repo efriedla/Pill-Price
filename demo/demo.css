@@ -1,0 +1,138 @@
+/* The demo's layout. Colours, type and spacing come only from tokens.css,
+   the app's own file, so this cannot drift from the real palette. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: var(--accent-hover); }
+:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip { position: absolute; left: -999px; top: 8px; background: var(--surface-raised); padding: 8px 12px; z-index: 10; }
+.skip:focus { left: 16px; }
+.muted { color: var(--text-secondary); }
+.wrap, .bar-inner, main, .foot { max-width: 60rem; margin: 0 auto; padding-inline: 16px; }
+
+/* ---- Bar ---- */
+.bar { border-bottom: 1px solid var(--border-hairline); background: var(--surface-raised); }
+.bar-inner { display: flex; align-items: center; gap: 12px; min-height: 56px; flex-wrap: wrap; }
+.wordmark { font-family: var(--font-display); font-size: var(--step-1); font-weight: 600; color: var(--text-primary); text-decoration: none; }
+.tag {
+  font-size: var(--step--1); color: var(--accent); background: var(--accent-quiet);
+  border-radius: var(--radius-pill); padding: 2px 10px; font-weight: 600;
+}
+.bar-links { margin-left: auto; display: flex; gap: 16px; font-size: var(--step--1); }
+
+.demo-note { background: var(--lavender); }
+.demo-note p { max-width: 60rem; margin: 0 auto; padding: 10px 16px; font-size: var(--step--1); }
+
+main { padding-block: 32px 48px; min-height: 60vh; }
+main:focus { outline: none; }
+
+/* ---- Home ---- */
+.hero h1 { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.1; margin: 8px 0 12px; font-weight: 600; }
+.hero .lede { font-size: var(--step-1); color: var(--text-secondary); max-width: var(--measure); margin: 0 0 24px; }
+.notice {
+  border-left: 3px solid var(--text-primary); padding: 4px 0 4px 16px; margin: 0 0 24px;
+  font-size: var(--step--1); max-width: var(--measure);
+}
+.search { max-width: 36rem; }
+.search label { display: block; font-size: var(--step--1); font-weight: 600; margin-bottom: 6px; }
+.search input {
+  width: 100%; font: inherit; padding: 10px 14px; border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md); background: var(--surface-raised); color: var(--text-primary);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.chips a {
+  display: inline-block; padding: 4px 12px; border-radius: var(--radius-pill);
+  background: var(--surface-raised); border: 1px solid var(--border-hairline);
+  font-size: var(--step--1); text-decoration: none; color: var(--text-primary);
+}
+.chips a:hover { border-color: var(--accent); }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 12px; margin: 48px 0 0; padding: 0; list-style: none; }
+.stats li { background: var(--surface-raised); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 16px; }
+.stats strong { display: block; font-family: var(--font-numeric); font-size: var(--step-2); color: var(--price-figure); font-variant-numeric: tabular-nums; }
+.stats span { font-size: var(--step--1); color: var(--text-secondary); }
+
+.how { margin-top: 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 24px; }
+.how h2 { font-size: var(--step-0); margin: 0 0 6px; }
+.how p { margin: 0; font-size: var(--step--1); color: var(--text-secondary); }
+
+.compare-strip { margin-top: 48px; }
+.compare-strip h2, .eyebrow {
+  font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-secondary); font-weight: 600; margin: 0 0 12px;
+}
+.pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
+.pairs a {
+  display: block; text-decoration: none; color: var(--text-primary); background: var(--surface-raised);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: 14px 16px;
+}
+.pairs a:hover { border-color: var(--accent); }
+.pairs .row { display: flex; justify-content: space-between; gap: 12px; font-size: var(--step--1); }
+.pairs .fig { font-family: var(--font-numeric); color: var(--price-figure); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* ---- Search ---- */
+.count { font-size: var(--step--1); color: var(--text-secondary); margin: 16px 0 24px; }
+.group { margin-top: 24px; }
+.results { list-style: none; margin: 0; padding: 0; }
+.results li { border-bottom: 1px solid var(--border-hairline); }
+.results a, .results .off { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; text-decoration: none; color: var(--text-primary); }
+.results a:hover .nm { color: var(--accent); text-decoration: underline; }
+.results .off { color: var(--text-secondary); }
+.results .side { font-size: var(--step--1); color: var(--text-secondary); white-space: nowrap; }
+.results .fig { font-family: var(--font-numeric); color: var(--price-figure); font-weight: 600; }
+
+/* ---- Drug ---- */
+.drug h1 { font-family: var(--font-display); font-size: var(--step-4); line-height: 1.12; margin: 0 0 6px; font-weight: 700; }
+.rxcui { font-family: var(--font-numeric); font-size: var(--step--1); color: var(--text-secondary); margin: 0 0 24px; }
+.price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0; }
+.price .fig { font-family: var(--font-numeric); font-weight: 600; color: var(--price-figure); font-variant-numeric: tabular-nums; }
+.price.large .fig { font-size: var(--step-3); letter-spacing: -0.01em; }
+.price .qual { font-size: var(--step--1); color: var(--text-secondary); }
+.reason { color: var(--text-secondary); margin: 0; max-width: var(--measure); }
+.reason.small { font-size: var(--step--1); }
+.sect { border-top: 1px solid var(--border-hairline); margin-top: 32px; padding-top: 24px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 16px; margin: 0; }
+.facts dt { font-weight: 600; }
+.facts dd { margin: 2px 0 0; color: var(--text-secondary); }
+.versions { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 16px; }
+.versions .nm { font-weight: 600; }
+.versions .kind { font-size: var(--step--1); color: var(--text-secondary); margin-left: 8px; }
+.caveat { font-size: var(--step--1); color: var(--text-secondary); max-width: var(--measure); margin: 0; }
+.label-src { font-size: var(--step--1); color: var(--text-secondary); max-width: var(--measure); }
+.label-sec { max-width: var(--measure); margin-top: 24px; }
+.label-sec h3 { font-size: var(--step-0); margin: 0 0 8px; }
+.label-sec .prose { margin: 0; }
+.label-sec .prose.clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.label-sec button {
+  font: inherit; font-size: var(--step--1); font-weight: 600; color: var(--accent); background: none;
+  border: 0; padding: 0; margin-top: 8px; cursor: pointer; text-underline-offset: 4px;
+}
+.label-sec button:hover { text-decoration: underline; }
+.boxed { border: 4px solid var(--warning-rule); background: var(--warning-bg); padding: 16px; }
+.back { display: inline-block; font-size: var(--step--1); margin-bottom: 16px; }
+
+/* ---- Footer ---- */
+.foot { border-top: 1px solid var(--border-hairline); padding-block: 24px 40px; font-size: var(--step--1); }
+.foot p { margin: 0 0 8px; max-width: var(--measure); }
+
+@media (max-width: 40rem) {
+  .bar-links { margin-left: 0; width: 100%; padding-bottom: 8px; }
+  .drug h1, .hero h1 { font-size: var(--step-3); }
+  .results a, .results .off { flex-direction: column; gap: 2px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chips a, .pairs a { transition: border-color var(--duration-fast) var(--ease); }
+}

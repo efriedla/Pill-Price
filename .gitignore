@@ -56,3 +56,7 @@ storybook-static
 # here, superseded every week — a build artifact, not a source of truth.
 .data/
 /.lighthouse/
+
+# Copied in at publish time by storybook-pages.yml; local preview only.
+/demo/tokens.css
+/demo/icon.svg

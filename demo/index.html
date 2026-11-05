@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pill Price — static demo</title>
+  <meta name="description" content="What U.S. pharmacies pay for a drug, from NADAC, RxNorm and openFDA. A static demo of a Next.js app, with real data frozen from its own GraphQL API.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <!-- The app's own design tokens, copied in at publish time (storybook-pages.yml). -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="bar">
+    <div class="bar-inner">
+      <a class="wordmark" href="#/">Pill Price</a>
+      <span class="tag" title="Real data, frozen. See the note below.">Static demo</span>
+      <nav class="bar-links" aria-label="Project">
+        <a href="https://github.com/efriedla/Pill-Price">Source</a>
+        <a href="https://github.com/efriedla/Pill-Price/tree/main/docs/adr">Decisions</a>
+        <a href="storybook/">Components</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="demo-note" role="note">
+    <p id="demo-note-text">A static demo. Loading data…</p>
+  </div>
+
+  <main id="main" tabindex="-1"></main>
+
+  <footer class="foot">
+    <p>
+      Built with Next.js 16, a GraphQL BFF over RxNorm, openFDA and NADAC, and
+      12 written decision records.
+      <a href="https://github.com/efriedla/Pill-Price#readme">Read how it works</a>.
+    </p>
+    <p class="muted">NADAC is what pharmacies pay to acquire a drug. It is not a retail or insurance price. Nothing here is medical advice.</p>
+  </footer>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
