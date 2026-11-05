@@ -81,7 +81,7 @@ Two distinct, factual sections. Never one blended "you might also like" list.
 
 **Same drug class** — grouped by `pharm_class_epc`. Framed as informational, explicitly not interchangeable. *Not built: `pharm_class_epc` is not in the schema yet.*
 
-Each card: name, brand or generic, and its own NADAC price under the §9 rule (unit and date), or the server's sentence when there is none. **No computed price difference** (2026-09-23, author's decision). A delta is arithmetic on money, and this app has so far refused to do any. The reader compares the two figures; a side-by-side comparison is `/compare`'s job. Never "people also take."
+Each card: name, brand or generic, and its own NADAC price under the §9 rule (unit and date), or the server's sentence when there is none. **No computed price difference** (2026-09-23, author's decision). A delta is arithmetic on money, and this app has so far refused to do any. The reader compares the two figures; a side-by-side comparison is `/compare`'s job. Never "people also take." **Demo-only exception (2026-11-05, author's decision):** the static demo on GitHub Pages (`demo/`) shows brand-to-generic multiples and "what $100 buys", computed with exact decimal arithmetic on the published prices (`demo/decimal.js`). The app itself still computes none.
 
 ---
 
